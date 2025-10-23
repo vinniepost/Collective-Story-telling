@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: ca38d7c07603e534d8b9f3f9e241309b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 300196
+  packageName: Modular Sewers & Tunnels (Modular Sewers, Modular Tunnels, Modular
+    Corridor)
+  packageVersion: 1.0
+  assetPath: Assets/HIVEMIND/TheSewers/HDRP(Default)/Art/Meshes/Kit_Concrete/Beams/Materials/MI_SMI_Sewer_Wall_BeaMI_01b.mat
+  uploadId: 715020
