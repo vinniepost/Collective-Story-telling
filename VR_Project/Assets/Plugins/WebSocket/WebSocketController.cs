@@ -1,75 +1,145 @@
 using UnityEngine;
 using NativeWebSocket;
+using System.Collections;
 using System.Threading.Tasks;
 
 public class WebSocketController : MonoBehaviour
 {
-    WebSocket websocket;
-    [SerializeField] GameObject sunny;
-    [SerializeField] GameObject rainy;
+    [Header("VR & Lights")]
+    public Transform vrPlayer;
+    public Light sunLight;
+    public Light rainLight;
+    public Light light1;
+    public Light light2;
+
+    private WebSocket websocket;
 
     async void Start()
     {
-        // Assign automatically if not set in Inspector
-        if (sunny == null) sunny = GameObject.Find("sunny");
-        if (rainy == null) rainy = GameObject.Find("rainy");
-
-        if (sunny == null || rainy == null)
-        {
-            Debug.LogError("Couldn't find 'sunny' or 'rainy' GameObjects!");
-            return;
-        }
-
-        sunny.SetActive(false);
-        rainy.SetActive(false);
+        if (vrPlayer == null) Debug.LogError("vrPlayer not assigned!");
 
         websocket = new WebSocket("ws://localhost:8080");
 
+        websocket.OnOpen += () => Debug.Log("[WebSocket] OPEN");
+        websocket.OnError += (e) => Debug.LogError("[WebSocket] ERROR: " + e);
+        websocket.OnClose += (e) => Debug.LogWarning("[WebSocket] CLOSED");
+
         websocket.OnMessage += (bytes) =>
         {
-            string message = System.Text.Encoding.UTF8.GetString(bytes);
-            Debug.Log("Received: " + message);
+            string msg = System.Text.Encoding.UTF8.GetString(bytes);
+            Debug.Log("[WebSocket] RECEIVED: " + msg);
 
-            var data = JsonUtility.FromJson<VoteUpdate>(message);
-            if (data.type == "update")
+            try
             {
-                if (data.votes.rain > data.votes.sunny)
-                    SetWeather("rainy");
-                else
-                    SetWeather("sunny");
+                var voteData = JsonUtility.FromJson<VoteUpdate>(msg);
+                if (voteData.type == "update")
+                {
+                    HandleVoteUpdate(voteData);
+                }
+                else if (voteData.type == "round_start")
+                {
+                    Debug.Log("New round started: " + voteData.round.name);
+                }
             }
+            catch { /* ignore non-vote messages */ }
         };
 
-        await websocket.Connect();
+        try
+        {
+            await websocket.Connect();
+            Debug.Log("WebSocket connected. Starting position updates...");
+            StartCoroutine(PositionUpdateCoroutine());
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("WebSocket failed to connect: " + e);
+        }
     }
 
 #if !UNITY_WEBGL || UNITY_EDITOR
     void Update()
     {
-        websocket.DispatchMessageQueue();
+        websocket?.DispatchMessageQueue();
     }
 #endif
 
+    private IEnumerator PositionUpdateCoroutine()
+    {
+        while (this != null && websocket != null && websocket.State == WebSocketState.Open)
+        {
+            if (vrPlayer == null) yield break;
+
+            SendPosition();
+            yield return new WaitForSeconds(0.05f);
+        }
+    }
+
+    private async void SendPosition()
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open) return;
+
+        var pos = new PlayerPosition
+        {
+            type = "player_position",
+            x = vrPlayer.position.x,
+            y = vrPlayer.position.y,
+            z = vrPlayer.position.z
+        };
+
+        string json = JsonUtility.ToJson(pos);
+        await websocket.SendText(json);
+    }
+
+    private void HandleVoteUpdate(VoteUpdate data)
+    {
+        if (data.round.name == "weather")
+        {
+            if (data.votes.rain > data.votes.sunny)
+            {
+                if (rainLight != null) rainLight.enabled = true;
+                if (sunLight != null) sunLight.enabled = false;
+            }
+            else
+            {
+                if (rainLight != null) rainLight.enabled = false;
+                if (sunLight != null) sunLight.enabled = true;
+            }
+        }
+        else if (data.round.name == "lights")
+        {
+            if (data.votes.light1 > data.votes.light2)
+            {
+                if (light1 != null) light1.enabled = true;
+                if (light2 != null) light2.enabled = false;
+            }
+            else
+            {
+                if (light1 != null) light1.enabled = false;
+                if (light2 != null) light2.enabled = true;
+            }
+        }
+    }
+
     async void OnApplicationQuit()
     {
-        await websocket.Close();
+        if (websocket != null)
+            await websocket.Close();
     }
 
-    void SetWeather(string weather)
+    void OnDestroy()
     {
-        if (weather == "rainy")
-        {
-            rainy.SetActive(true);
-            sunny.SetActive(false);
-        }
-        else if (weather == "sunny")
-        {
-            rainy.SetActive(false);
-            sunny.SetActive(true);
-        }
-
-        Debug.Log("Setting weather to " + weather);
+        StopAllCoroutines();
     }
+}
+
+// ---------------------
+// JSON Models
+// ---------------------
+[System.Serializable]
+public class PlayerPosition
+{
+    public string type;
+    public float x, y, z;
 }
 
 [System.Serializable]
@@ -77,6 +147,7 @@ public class VoteUpdate
 {
     public string type;
     public Votes votes;
+    public RoundInfo round;
 }
 
 [System.Serializable]
@@ -84,4 +155,13 @@ public class Votes
 {
     public int sunny;
     public int rain;
+    public int light1;
+    public int light2;
+}
+
+[System.Serializable]
+public class RoundInfo
+{
+    public string name;
+    public string[] options;
 }

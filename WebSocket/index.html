@@ -1,30 +1,61 @@
 <!DOCTYPE html>
 <html>
   <body>
-    <h1>Vote for the weather!</h1>
-    <button onclick="vote('sunny')">☀️ Sunny</button>
-    <button onclick="vote('rain')">🌧️ Rain</button>
+    <h1 id="roundName">Voting</h1>
+    <div id="buttons"></div>
     <p id="results"></p>
-    <p id="playerPos">Player: (0, 0, 0)</p>
+    <p id="playerPos">Player: (0,0,0)</p>
 
     <script>
       const ws = new WebSocket('ws://localhost:8080');
       const results = document.getElementById('results');
+      const buttonsDiv = document.getElementById('buttons');
+      const roundName = document.getElementById('roundName');
+
+      let currentRound = null;
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === 'update') {
-          results.textContent = `Sunny: ${data.votes.sunny} | Rain: ${data.votes.rain}`;
+
+        if (data.type === "round_start") {
+          currentRound = data.round;
+          roundName.textContent = "Round: " + data.round.name;
+
+          // generate buttons
+          buttonsDiv.innerHTML = '';
+          data.round.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.textContent = opt;
+            btn.onclick = () => vote(opt);
+            buttonsDiv.appendChild(btn);
+          });
         }
+
+        if (data.type === "update") {
+          let txt = '';
+          for (const [k,v] of Object.entries(data.votes)) {
+            txt += `${k}: ${v} | `;
+          }
+          results.textContent = txt;
+        }
+
         if (data.type === "player_position") {
-            document.getElementById("playerPos").textContent =
-                `Player: (${data.x.toFixed(2)}, ${data.y.toFixed(2)}, ${data.z.toFixed(2)})`;
+          document.getElementById("playerPos").textContent =
+            `Player: (${data.x.toFixed(2)}, ${data.y.toFixed(2)}, ${data.z.toFixed(2)})`;
+        }
+
+        if (data.type === "voting_end") {
+          roundName.textContent = "Voting Finished";
+          buttonsDiv.innerHTML = '';
         }
       };
-      
 
       function vote(option) {
         ws.send(JSON.stringify({ type: 'vote', option }));
+      }
+
+      function endRound() {
+        ws.send(JSON.stringify({ type: 'end_round' }));
       }
     </script>
   </body>
