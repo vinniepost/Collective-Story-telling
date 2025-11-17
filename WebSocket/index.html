@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Vote for the weather!</h1>
+    <button onclick="vote('sunny')">☀️ Sunny</button>
+    <button onclick="vote('rain')">🌧️ Rain</button>
+    <p id="results"></p>
+    <p id="playerPos">Player: (0, 0, 0)</p>
+
+    <script>
+      const ws = new WebSocket('ws://localhost:8080');
+      const results = document.getElementById('results');
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'update') {
+          results.textContent = `Sunny: ${data.votes.sunny} | Rain: ${data.votes.rain}`;
+        }
+        if (data.type === "player_position") {
+            document.getElementById("playerPos").textContent =
+                `Player: (${data.x.toFixed(2)}, ${data.y.toFixed(2)}, ${data.z.toFixed(2)})`;
+        }
+      };
+      
+
+      function vote(option) {
+        ws.send(JSON.stringify({ type: 'vote', option }));
+      }
+    </script>
+  </body>
+</html>
