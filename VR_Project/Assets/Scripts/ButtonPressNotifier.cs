@@ -4,7 +4,9 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 public class ButtonPressNotifier : MonoBehaviour
 {
-    public UnityEvent OnButtonPressed; // Assigned in inspector
+    public UnityEvent OnButtonPressed;
+
+    private bool alreadyPressed = false;
 
     private void Awake()
     {
@@ -14,7 +16,12 @@ public class ButtonPressNotifier : MonoBehaviour
 
     private void OnPress(SelectEnterEventArgs args)
     {
+        if (alreadyPressed)
+            return; // <-- blokkeer dubbel drukken
+
+        alreadyPressed = true;
         Debug.Log($"{gameObject.name} was pressed");
+
         OnButtonPressed.Invoke();
     }
 }
