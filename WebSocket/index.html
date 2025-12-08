@@ -1,10 +1,197 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>BAD COMPANY Interface</title>
+        <style>
+        body {
+            background-color: #000;
+            color: #CCCCCC;
+            font-family: 'Arial', sans-serif;
+            margin: 0; 
+            padding: 0; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-size: 14px;
+            box-sizing: border-box; 
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            flex-shrink: 1; 
+            display: grid;
+            grid-template-columns: 1fr 3fr; 
+            gap: 20px;
+            padding: 20px;
+            background-color: #121212; 
+            border: 2px solid #004d00;
+            box-sizing: border-box; 
+        }
+
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #004d00;
+            margin-bottom: 10px;
+            color: #FFFFFF; 
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .network-status {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff0000; 
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 400px; 
+        }
+
+        .tasks-card {
+            background-color: #222;
+            border: 1px solid #004d00;
+            padding: 10px;
+        }
+
+        .image-placeholder {
+            width: 100%;
+            height: 150px;
+            background-color: #000; 
+            border: 1px solid #004d00;
+            margin-bottom: 10px;
+        }
+
+        .tasks-text {
+            padding-top: 5px;
+            color: #ddd; 
+        }
+
+        .vitals-section h3 {
+            color: #FFFFFF; 
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        
+        .vitals-section {
+            padding: 10px 0;
+        }
+
+        .vitals-bar {
+            height: 15px;
+            background-color: #444;
+            border: 1px solid #004d00;
+            margin-bottom: 8px;
+        }
+
+        .vitals-fill {
+            height: 100%;
+            background-color: #00ff00;
+        }
+
+        .map-panel {
+            background-color: #1a1a1a;
+            border: 2px solid #004d00;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .map-placeholder {
+            width: 100%;
+            padding-top: 100%;
+            background-color: #102010;
+            border: 1px solid #004d00;
+        }
+        
+        @media (max-width: 768px) {
+            
+            body {
+                align-items: flex-start;
+            }
+
+            .container {
+                grid-template-columns: 1fr; 
+                gap: 15px; 
+                width: 100%; 
+                padding: 10px;
+                min-height: 100vh;
+            }
+
+            .left-panel {
+                order: 2; 
+                min-height: auto;
+            }
+
+            .map-panel {
+                order: 1; 
+            }
+            
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .network-status {
+                margin-top: 5px;
+            }
+            
+            body {
+                font-size: 12px;
+            }
+            
+            .header-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+  </head>
   <body>
-    <h1 id="roundName">Voting</h1>
-    <div id="buttons"></div>
-    <p id="results"></p>
-    <p id="playerPos">Player: (0,0,0)</p>
+<div class="container">
+    <header>
+        <div class="header-title">BAD COMPANY</div>
+        <div class="network-status">Network: **UNSTABLE**</div>
+    </header>
+
+    <div class="left-panel">
+        <div class="tasks-card">
+            <div class="image-placeholder">
+                </div>
+            <h3>TASKS <span style="float: right; color: magenta;">M</span></h3>
+            <div class="tasks-text">
+                Guide the player to collect all machine<br>
+                parts and fix the critical systems.
+            </div>
+        </div>
+        
+        <div class="vitals-section">
+            <h3>VITALS</h3>
+            <h4>HEALTH</h4>
+            <div class="vitals-bar"><div class="vitals-fill" style="width: 85%;"></div></div>
+            
+            <h3 style="margin-top: 15px;">SYSTEMS DOWN</h3>
+            <div class="vitals-bar"><div class="vitals-fill" style="background-color: #ff0000; width: 40%;"></div></div>
+        </div>
+    </div>
+
+    <div class="map-panel">
+        <div class="map-placeholder">
+            </div>
+    </div>
+    
+    </div>
 
     <script>
       const ws = new WebSocket('ws://localhost:8080');
