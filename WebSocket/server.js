@@ -1,35 +1,29 @@
+const express = require('express');
+const http = require('http');
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8080 });
+const { v4: uuidv4 } = require('uuid');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-const rounds = [
-    { name: "weather", options: ["sunny", "rain"], duration: 40 }, // seconds
-    { name: "lights", options: ["light1", "light2"], duration: 40 } // seconds
-];
+app.use(express.static('public'));
 
-let currentRound = 0;
-let votes = {};
-let roundTimer = null;
+const server = http.createServer(app);
+server.listen(PORT, () => {
+    console.log(`HTTP server running on http://localhost:${PORT}`);
+});
 
-function startRound(roundIndex) {
-    if (roundIndex >= rounds.length) {
-        console.log("All rounds finished!");
-        broadcast({ type: "voting_end" });
-        return;
-    }
+const wss = new WebSocket.Server({ server });
 
-    currentRound = roundIndex;
-    votes = {};
-    rounds[currentRound].options.forEach(opt => votes[opt] = 0);
+const availableActions = ["close_door", "light", "sound_1", "sound_2"];
+let uniqueActionVotes = {};
+let clientVotes = new Map();
+let playerInSecretArea = false;
 
-    console.log(`Starting round ${currentRound}: ${rounds[currentRound].name}`);
-    broadcast({ type: "round_start", round: rounds[currentRound] });
+availableActions.forEach(action => uniqueActionVotes[action] = 0);
+console.log('Available Actions Initialized.');
 
-    // Start automatic timer for this round
-    if (roundTimer) clearTimeout(roundTimer);
-    roundTimer = setTimeout(() => {
-        console.log(`Round ${rounds[currentRound].name} ended automatically.`);
-        startRound(currentRound + 1);
-    }, rounds[currentRound].duration * 1000);
+function getClientCount() {
+    return wss.clients.size;
 }
 
 function broadcast(obj) {
@@ -41,34 +35,91 @@ function broadcast(obj) {
     });
 }
 
-// Start first round
-startRound(0);
+function resetVotingCycle() {
+    clientVotes.clear();
+    availableActions.forEach(action => uniqueActionVotes[action] = 0);
+
+    broadcastStateUpdate();
+    console.log("Voting cycle reset by server.");
+}
+
+function broadcastStateUpdate() {
+    broadcast({
+        type: "update",
+        votes: uniqueActionVotes,
+        totalClients: getClientCount(),
+        playerInArea: playerInSecretArea
+    });
+}
+
+function checkThreshold(action, currentVotes, totalClients) {
+    const requiredVotes = Math.ceil(totalClients * 0.50);
+    return currentVotes >= requiredVotes && totalClients > 0;
+}
+
+function handleVote(ws, action) {
+    const clientId = ws.id;
+    const totalClients = getClientCount();
+
+    if (clientVotes.has(clientId)) {
+        console.log(`Client ${clientId} already voted.`);
+        ws.send(JSON.stringify({ type: "feedback", message: "You have already cast your vote.", votedAction: clientVotes.get(clientId) }));
+        return;
+    }
+
+    clientVotes.set(clientId, action);
+    uniqueActionVotes[action]++;
+    const newCount = uniqueActionVotes[action];
+
+    broadcastStateUpdate();
+
+    if (checkThreshold(action, newCount, totalClients)) {
+        console.log(`THRESHOLD REACHED for ${action}! Total Clients: ${totalClients}, Votes: ${newCount}`);
+
+        broadcast({ type: "action", command: action });
+
+        resetVotingCycle();
+    }
+}
 
 wss.on('connection', ws => {
-    console.log('Client connected');
+    ws.id = uuidv4();
+    console.log(`Client connected (${ws.id}). Total clients: ${getClientCount()}`);
 
-    // Send current round info and votes
-    ws.send(JSON.stringify({ type: "round_start", round: rounds[currentRound] }));
-    ws.send(JSON.stringify({ type: "update", votes, round: rounds[currentRound] }));
+    ws.send(JSON.stringify({
+        type: "update",
+        votes: uniqueActionVotes,
+        totalClients: getClientCount(),
+        playerInArea: playerInSecretArea
+    }));
+
+    broadcast({ type: "client_count", count: getClientCount() });
 
     ws.on('message', message => {
         try {
             const data = JSON.parse(message);
 
             if (data.type === 'vote') {
-                if (votes[data.option] !== undefined) {
-                    votes[data.option]++;
-                    broadcast({ type: "update", votes, round: rounds[currentRound] });
+                handleVote(ws, data.option);
+            }
+            if (data.type === 'game_event') {
+                console.log(`Unity Event Triggered: ${data.event_id}`);
+
+                if (data.event_id === 'ZoneEnter_Secret') {
+                    playerInSecretArea = true;
+                    broadcastStateUpdate();
+                } else if (data.event_id === 'ZoneExit_Secret') {
+                    playerInSecretArea = false;
+                    broadcastStateUpdate();
+                } else if (data.event_id === 'VoteResetArea') {
+                    broadcast({ type: "notification", message: "Checkpoint Reached! Voting Cycle Reset." });
+                    resetVotingCycle();
                 }
+                return;
             }
 
-            if (data.type === "player_position") {
-                broadcast({
-                    type: "player_position",
-                    x: data.x,
-                    y: data.y,
-                    z: data.z
-                });
+            if (data.type === 'request_state') {
+                broadcastStateUpdate();
             }
 
         } catch (e) {
@@ -76,7 +127,15 @@ wss.on('connection', ws => {
         }
     });
 
-    ws.on('close', () => console.log('Client disconnected'));
-});
+    ws.on('close', () => {
+        const votedAction = clientVotes.get(ws.id);
+        if (votedAction) {
+            uniqueActionVotes[votedAction]--;
+            clientVotes.delete(ws.id);
+            broadcastStateUpdate();
+        }
 
-console.log('WebSocket server running on ws://localhost:8080');
+        console.log(`Client disconnected (${ws.id}). Total clients: ${getClientCount()}`);
+        broadcast({ type: "client_count", count: getClientCount() });
+    });
+});

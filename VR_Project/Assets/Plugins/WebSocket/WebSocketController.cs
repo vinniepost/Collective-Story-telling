@@ -18,7 +18,7 @@ public class WebSocketController : MonoBehaviour
     {
         if (vrPlayer == null) Debug.LogError("vrPlayer not assigned!");
 
-        websocket = new WebSocket("ws://localhost:8080");
+        websocket = new WebSocket("wss://websocketmixedreality.onrender.com/");
 
         websocket.OnOpen += () => Debug.Log("[WebSocket] OPEN");
         websocket.OnError += (e) => Debug.LogError("[WebSocket] ERROR: " + e);
@@ -120,6 +120,24 @@ public class WebSocketController : MonoBehaviour
         }
     }
 
+    public async void SendGameEvent(string eventJson)
+    {
+        if (websocket == null || websocket.State != WebSocketState.Open)
+        {
+            Debug.LogWarning("WebSocket not open. Cannot send event.");
+            return;
+        }
+
+        try
+        {
+            await websocket.SendText(eventJson);
+            Debug.Log("[WebSocket] SENT EVENT: " + eventJson);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Failed to send event: " + e.Message);
+        }
+    }
     async void OnApplicationQuit()
     {
         if (websocket != null)
@@ -164,4 +182,11 @@ public class RoundInfo
 {
     public string name;
     public string[] options;
+}
+
+[System.Serializable]
+public class TriggerEvent
+{
+    public string type = "game_event";
+    public string event_id;            
 }

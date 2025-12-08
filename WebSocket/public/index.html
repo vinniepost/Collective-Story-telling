@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAD COMPANY Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title">BAD COMPANY</div>
+        <div style="font-size: 14px; margin-right: 10px;">Viewers: <span id="viewer-count">--</span></div>
+        <div class="network-status" id="network-status">Network: **UNSTABLE**</div>
+    </header>
+
+    <div id="game-status-panels" style="grid-column: 1 / -1; display: flex; gap: 20px;">
+        </div>
+    
+    <div id="voting-interface" style="grid-column: 1 / -1; background-color: #1a1a1a; padding: 20px; border: 2px solid #004d00;">
+        <h3>AUDIENCE CONTROL PANEL (ONE VOTE PER CYCLE)</h3>
+        
+        <p id="threshold-text" style="color: #FFD700; font-weight: bold;">(Loading threshold...)</p> 
+        
+        <div id="options-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
+            <button class="action-button" data-action="close_door">CLOSE DOOR</button>
+            <button class="action-button" data-action="light">LIGHT</button>
+            
+            <button class="action-button specific-area-button" id="btn-slow-time" data-action="sound_1" style="display: none;">SOUND 1</button>
+            <button class="action-button specific-area-button" id="btn-blind-player" data-action="sound_2" style="display: none;">SOUND 2</button>
+        </div>
+        
+        <div id="results-container" style="margin-top: 20px;">
+            <h4>LIVE TALLIES:</h4>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
