@@ -110,6 +110,19 @@
             background-color: #102010;
             border: 1px solid #004d00;
         }
+        #map-container {
+            grid-column: 1 / -1; 
+            width: 100%; 
+            padding: 10px 0;
+        }
+
+        #game-map {
+            width: 100%; 
+            height: auto; 
+            max-width: 100%;
+            display: block; 
+            border: 1px solid #00FF00; 
+        }
 
         @media (max-width: 768px) {
             
