@@ -18,7 +18,7 @@ MonoBehaviour:
     value: 1
   gradingMode:
     overrideState: 0
-    value: 1
+    value: 0
   externalLut:
     overrideState: 0
     value: {fileID: 0}
@@ -59,10 +59,10 @@ MonoBehaviour:
     value: 0
   colorFilter:
     overrideState: 1
-    value: {r: 0, g: 1, b: 0.030817509, a: 1}
+    value: {r: 0, g: 1, b: 0.027451038, a: 1}
   hueShift:
     overrideState: 0
-    value: 0
+    value: 90
   saturation:
     overrideState: 0
     value: 0
@@ -70,8 +70,8 @@ MonoBehaviour:
     overrideState: 0
     value: 0
   postExposure:
-    overrideState: 0
-    value: 0
+    overrideState: 1
+    value: 1
   contrast:
     overrideState: 0
     value: 0
@@ -104,13 +104,13 @@ MonoBehaviour:
     value: 100
   lift:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 0.33497727, y: 1, z: 0.4201086, w: 0}
   gamma:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 0.41923445, y: 1, z: 0.4963552, w: 0}
   gain:
     overrideState: 0
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 0.8693684, y: 0.9311845, z: 1, w: 0}
   masterCurve:
     overrideState: 0
     value:
@@ -120,7 +120,7 @@ MonoBehaviour:
         - serializedVersion: 3
           time: 0
           value: 0
-          inSlope: 1
+          inSlope: 0
           outSlope: 1
           tangentMode: 0
           weightedMode: 0
@@ -130,7 +130,7 @@ MonoBehaviour:
           time: 1
           value: 1
           inSlope: 1
-          outSlope: 1
+          outSlope: 0
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
@@ -889,7 +889,7 @@ MonoBehaviour:
       - 0.5
       - 0.5
   hueVsSatCurve:
-    overrideState: 0
+    overrideState: 1
     value:
       curve:
         serializedVersion: 2
