@@ -1,53 +1,69 @@
+using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 public class CustomLever : MonoBehaviour
 {
-    [Header("Rotation Limits")]
-    public float minAngle = -75f;
-    public float maxAngle = 75f;
+    private bool status = false;
+    public bool LeverStatus { get { return status; } set { status = value; } }
+    private GameObject handle;
+    private float triggerValue = 80f;
 
-    private float startY;
-    private float startZ;
-
-    void Start()
+    private void Start()
     {
-        // Store untouched axes
-        Vector3 startRot = transform.eulerAngles;
-        startY = startRot.y;
-        startZ = startRot.z;
+        if (handle == null)
+        {
+            handle = this.gameObject;
+        }
     }
-
-    void Update()
+    private void Update()
     {
-        Vector3 localRot = transform.localEulerAngles;
-
-        float x = NormalizeAngle(localRot.x);
-        x = Mathf.Clamp(x, minAngle, maxAngle);
-
-        transform.localEulerAngles = new Vector3(
-            x,
-            startY,
-            startZ
-        );
-    }
-
-    float NormalizeAngle(float angle)
-    {
-        if (angle > 90f)
-            angle -= 180f;
-        else if (angle < -90f)
-            angle += 180f;
-        return angle;
+        status = StatusChange(handle, triggerValue);
     }
 
     /// <summary>
-    /// Returns lever position from 0 (min) to 1 (max)
+    /// Returns true when the current rotation is larger then the triggerValue
+    ///
     /// </summary>
-    public float GetValue01()
+    /// <param name="handle">Object that is being rotated</param>
+    /// <param name="triggerValue">Value for the rotation, should be somewhere around 80</param>
+    /// <returns></returns>
+    private bool StatusChange(GameObject handle, float triggerValue = 80f)
     {
-        float x = NormalizeAngle(transform.localEulerAngles.x);
-        return Mathf.InverseLerp(minAngle, maxAngle, x);
+        float currentValue = handle.transform.localEulerAngles.x;
+        if (currentValue < triggerValue) return true;
+        else return false;
+    }
+
+    public void HapticTest()
+    {
+        float currentValue = handle.transform.localEulerAngles.x;
+        Debug.Log(currentValue);
+        if (currentValue > 200f)
+        {
+            Debug.Log("Haptic feedback test");
+            StartHaptics(1f, 1f, 2f);
+        }
+    }
+
+
+    public void StartHaptics(float lowFreq, float highFreq, float duration)
+    {
+        Debug.Log(Gamepad.current);
+        if (Gamepad.current == null)
+            return;
+
+        Gamepad.current.SetMotorSpeeds(lowFreq, highFreq);
+        Invoke(nameof(StopHaptics), duration);
+    }
+
+    public void StopHaptics()
+    {
+        if (Gamepad.current == null)
+            return;
+
+        Gamepad.current.SetMotorSpeeds(0f, 0f);
     }
 }
