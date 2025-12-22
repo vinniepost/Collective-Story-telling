@@ -5,8 +5,8 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 public class CustomLever : MonoBehaviour
 {
     [Header("Rotation Limits")]
-    public float minAngle = -45f;
-    public float maxAngle = 45f;
+    public float minAngle = -75f;
+    public float maxAngle = 75f;
 
     private float startY;
     private float startZ;
@@ -14,7 +14,7 @@ public class CustomLever : MonoBehaviour
     void Start()
     {
         // Store untouched axes
-        Vector3 startRot = transform.localEulerAngles;
+        Vector3 startRot = transform.eulerAngles;
         startY = startRot.y;
         startZ = startRot.z;
     }
@@ -35,8 +35,10 @@ public class CustomLever : MonoBehaviour
 
     float NormalizeAngle(float angle)
     {
-        if (angle > 180f)
-            angle -= 360f;
+        if (angle > 90f)
+            angle -= 180f;
+        else if (angle < -90f)
+            angle += 180f;
         return angle;
     }
 
