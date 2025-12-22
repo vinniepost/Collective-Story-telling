@@ -4,39 +4,48 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 public class CustomLever : MonoBehaviour
 {
-    [Header("Lever Settings")]
-    public Transform handle;
-    public float minAngle = -89f;
-    public float maxAngle = 89f;
+    [Header("Rotation Limits")]
+    public float minAngle = -45f;
+    public float maxAngle = 45f;
 
-    [Header("Output")]
-    public float leverValue;
+    private float startY;
+    private float startZ;
 
-    private XRBaseInteractor interactor;
+    void Start()
+    {
+        // Store untouched axes
+        Vector3 startRot = transform.localEulerAngles;
+        startY = startRot.y;
+        startZ = startRot.z;
+    }
 
-    // Update is called once per frame
     void Update()
     {
-        if (interactor == null) return;
+        Vector3 localRot = transform.localEulerAngles;
 
-        Vector3 localHandPos = transform.InverseTransformPoint(interactor.transform.position);
+        float x = NormalizeAngle(localRot.x);
+        x = Mathf.Clamp(x, minAngle, maxAngle);
 
-        float angle = Mathf.Atan2(localHandPos.z, localHandPos.y) * Mathf.Rad2Deg;
-        angle = Mathf.Clamp(angle, minAngle, maxAngle);
-
-        handle.localRotation = Quaternion.Euler(angle, 0f, 0f);
-
-        leverValue = Mathf.InverseLerp(minAngle, maxAngle, angle);
+        transform.localEulerAngles = new Vector3(
+            x,
+            startY,
+            startZ
+        );
     }
 
-
-    public void Grab(XRBaseInteractor grabber)
+    float NormalizeAngle(float angle)
     {
-        interactor = grabber;
+        if (angle > 180f)
+            angle -= 360f;
+        return angle;
     }
 
-    public void Release()
+    /// <summary>
+    /// Returns lever position from 0 (min) to 1 (max)
+    /// </summary>
+    public float GetValue01()
     {
-        interactor = null;
+        float x = NormalizeAngle(transform.localEulerAngles.x);
+        return Mathf.InverseLerp(minAngle, maxAngle, x);
     }
 }
