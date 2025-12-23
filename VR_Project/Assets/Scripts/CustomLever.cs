@@ -1,15 +1,31 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 public class CustomLever : MonoBehaviour
 {
-    private bool status = false;
+    [Header("Public variable")]
     public bool LeverStatus { get { return status; } set { status = value; } }
-    private GameObject handle;
-    private float triggerValue = 80f;
+
+    [Header("Event Function")]
+    [SerializeField] private bool lightBool = false;
+    [SerializeField] private bool teleportBool = false;
+    
+
+    [Header("Light Settings")]
+    [SerializeField] private Light lightSource;
+
+    [Header("Teleport Settings")]
+    [SerializeField] private GameObject destination;
+
+    [Header("Handle settings")]
+    [SerializeField] private bool status = false;
+    [SerializeField] private GameObject handle;
+    [SerializeField] private float triggerValue = 80f;
+
 
     private void Start()
     {
@@ -21,6 +37,19 @@ public class CustomLever : MonoBehaviour
     private void Update()
     {
         status = StatusChange(handle, triggerValue);
+
+        if (status && lightBool)
+        {
+            Debug.Log("Light");
+            ChangeLightStatus(lightSource);
+        }
+        else if (status && teleportBool)
+        {
+        }
+        else if (!status) { }
+        else
+        { Debug.Log($"{this.gameObject.name} has no function assigned to it"); }
+
     }
 
     /// <summary>
@@ -37,33 +66,18 @@ public class CustomLever : MonoBehaviour
         else return false;
     }
 
-    public void HapticTest()
+    private void ChangeLightStatus(Light light)
     {
-        float currentValue = handle.transform.localEulerAngles.x;
-        Debug.Log(currentValue);
-        if (currentValue > 200f)
+        float currentStatus = light.intensity;
+        Debug.Log(currentStatus);
+        if (currentStatus > 0f)
         {
-            Debug.Log("Haptic feedback test");
-            StartHaptics(1f, 1f, 2f);
+            light.intensity = 0f;
         }
+        /*else 
+        { 
+            light.intensity = 1f;
+        }*/
     }
 
-
-    public void StartHaptics(float lowFreq, float highFreq, float duration)
-    {
-        Debug.Log(Gamepad.current);
-        if (Gamepad.current == null)
-            return;
-
-        Gamepad.current.SetMotorSpeeds(lowFreq, highFreq);
-        Invoke(nameof(StopHaptics), duration);
-    }
-
-    public void StopHaptics()
-    {
-        if (Gamepad.current == null)
-            return;
-
-        Gamepad.current.SetMotorSpeeds(0f, 0f);
-    }
 }
