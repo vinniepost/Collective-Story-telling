@@ -1,0 +1,32 @@
+<div class="container">
+  <header>
+      <div class="header-title">BAD COMPANY</div>
+      <div style="font-size: 14px;">
+        Viewers: <span>{{ ws.totalClients() }}</span>
+      </div>
+      <div class="network-status">
+        Network: 
+        <span [style.color]="ws.isConnected() ? '#00ff00' : '#ff0000'">
+          {{ ws.isConnected() ? 'STABLE' : 'UNSTABLE' }}
+        </span>
+      </div>
+  </header>
+
+  <div id="map-container">
+      <app-map-component 
+        [disabled]="hasVoted()" 
+        [votes]="ws.votes()"
+        [totalClients]="ws.totalClients()"
+        (action)="vote($event)">
+      </app-map-component>
+  </div>
+  
+  <div id="terminal-container" style="display: flex; flex-direction: column; padding: 10px 0;">
+      <app-terminal-component style="flex: 1;"></app-terminal-component>
+  </div>
+
+  <div id="bottom-container" style="grid-column: 1 / -1; display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+      <app-message-component style="height: 100%;"></app-message-component>
+      <app-operator-chat-component style="height: 100%;"></app-operator-chat-component>
+  </div>
+</div>

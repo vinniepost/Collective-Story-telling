@@ -2,10 +2,16 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'client/dist/client/browser')));
+
+// Catch-all for Angular routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/dist/client/browser/index.html'));
+});
 
 const server = http.createServer(app);
 server.listen(PORT, () => {
@@ -18,6 +24,16 @@ const availableActions = ["close_door", "light", "sound_1", "sound_2"];
 let uniqueActionVotes = {};
 let clientVotes = new Map();
 let playerInSecretArea = false;
+
+// Operator Chat System
+let nextOperatorId = 1;
+let chatHistory = []; // Store last 50 messages
+
+// Message System State
+let vrMessage = "";
+let messageOptions = []; // ["Option A", "Option B", "Option C"]
+let messageVotes = {}; // { "Option A": 5 }
+let clientMessageVotes = new Map(); // ClientID -> Set<Option>
 
 availableActions.forEach(action => uniqueActionVotes[action] = 0);
 console.log('Available Actions Initialized.');
@@ -43,6 +59,13 @@ function resetVotingCycle() {
     console.log("Voting cycle reset by server.");
 }
 
+function resetMessageVoting() {
+    messageVotes = {};
+    messageOptions.forEach(opt => messageVotes[opt] = 0);
+    clientMessageVotes.clear();
+    broadcastMessageState();
+}
+
 function broadcastStateUpdate() {
     broadcast({
         type: "update",
@@ -52,8 +75,26 @@ function broadcastStateUpdate() {
     });
 }
 
+function broadcastMessageState() {
+    broadcast({
+        type: "message_state",
+        vrMessage: vrMessage,
+        options: messageOptions,
+        votes: messageVotes
+    });
+}
+
 function checkThreshold(action, currentVotes, totalClients) {
-    const requiredVotes = Math.ceil(totalClients * 0.50);
+    // "half of the connected clients - 1(the vr player doesn't need to be counted)"
+    const audienceCount = Math.max(0, totalClients - 1);
+    const requiredVotes = audienceCount === 0 ? 1 : Math.ceil(audienceCount / 2);
+    return currentVotes >= requiredVotes && totalClients > 0;
+}
+
+function checkMessageThreshold(currentVotes, totalClients) {
+    // "a third of the votes to be sent"
+    const audienceCount = Math.max(0, totalClients - 1);
+    const requiredVotes = audienceCount === 0 ? 1 : Math.ceil(audienceCount / 3);
     return currentVotes >= requiredVotes && totalClients > 0;
 }
 
@@ -82,15 +123,78 @@ function handleVote(ws, action) {
     }
 }
 
+function handleMessageVote(ws, option) {
+    const clientId = ws.id;
+    const totalClients = getClientCount();
+
+    if (!messageOptions.includes(option)) return;
+
+    if (!clientMessageVotes.has(clientId)) {
+        clientMessageVotes.set(clientId, new Set());
+    }
+
+    const userVotes = clientMessageVotes.get(clientId);
+    if (userVotes.has(option)) {
+        // Toggle vote off? Or just ignore? Let's assume ignore for now, or toggle.
+        // "people can vote for multiple messages"
+        // Let's implement toggle for better UX
+        userVotes.delete(option);
+        messageVotes[option]--;
+    } else {
+        userVotes.add(option);
+        messageVotes[option]++;
+    }
+
+    const newCount = messageVotes[option];
+    broadcastMessageState();
+
+    if (checkMessageThreshold(newCount, totalClients)) {
+        console.log(`MESSAGE THRESHOLD REACHED for "${option}"!`);
+        
+        // Send to VR Player (and everyone else as notification)
+        broadcast({ type: "vr_message_sent", message: option });
+        
+        // Reset options (hide them)
+        messageOptions = [];
+        resetMessageVoting();
+    }
+}
+
 wss.on('connection', ws => {
     ws.id = uuidv4();
-    console.log(`Client connected (${ws.id}). Total clients: ${getClientCount()}`);
+    
+    // Assign Operator ID
+    const operatorId = String(nextOperatorId).padStart(3, '0');
+    ws.username = `Operator-${operatorId}`;
+    nextOperatorId++;
+
+    console.log(`Client connected (${ws.id}) as ${ws.username}. Total clients: ${getClientCount()}`);
+
+    // Send assigned username to client
+    ws.send(JSON.stringify({
+        type: "assign_username",
+        username: ws.username
+    }));
+
+    // Send chat history
+    ws.send(JSON.stringify({
+        type: "chat_history",
+        messages: chatHistory
+    }));
 
     ws.send(JSON.stringify({
         type: "update",
         votes: uniqueActionVotes,
         totalClients: getClientCount(),
         playerInArea: playerInSecretArea
+    }));
+    
+    // Send initial message state
+    ws.send(JSON.stringify({
+        type: "message_state",
+        vrMessage: vrMessage,
+        options: messageOptions,
+        votes: messageVotes
     }));
 
     broadcast({ type: "client_count", count: getClientCount() });
@@ -102,6 +206,27 @@ wss.on('connection', ws => {
             if (data.type === 'vote') {
                 handleVote(ws, data.option);
             }
+            
+            if (data.type === 'vote_message') {
+                handleMessageVote(ws, data.option);
+            }
+
+            if (data.type === 'chat_message') {
+                const chatMsg = {
+                    username: ws.username,
+                    text: data.text,
+                    timestamp: new Date()
+                };
+                
+                chatHistory.push(chatMsg);
+                if (chatHistory.length > 50) chatHistory.shift(); // Keep last 50
+
+                broadcast({
+                    type: "chat_message",
+                    message: chatMsg
+                });
+            }
+
             if (data.type === 'game_event') {
                 console.log(`Unity Event Triggered: ${data.event_id}`);
 
@@ -117,9 +242,34 @@ wss.on('connection', ws => {
                 }
                 return;
             }
+            
+            // Handle VR Player sending a message to the audience
+            if (data.type === 'vr_message') {
+                vrMessage = data.message;
+                broadcastMessageState();
+                broadcast({ type: "notification", message: `INCOMING MESSAGE: ${data.message}` });
+            }
+
+            // Handle VR Player starting a vote
+            if (data.type === 'start_message_vote') {
+                messageOptions = data.options; // Expecting array of strings
+                resetMessageVoting();
+                broadcast({ type: "notification", message: "NEW RESPONSE OPTIONS AVAILABLE" });
+            }
 
             if (data.type === 'request_state') {
                 broadcastStateUpdate();
+                ws.send(JSON.stringify({
+                    type: "message_state",
+                    vrMessage: vrMessage,
+                    options: messageOptions,
+                    votes: messageVotes
+                }));
+            }
+
+            // Allow Unity/Admin to send direct logs to terminals
+            if (data.type === 'broadcast_log') {
+                broadcast({ type: "notification", message: data.message });
             }
 
         } catch (e) {
@@ -132,10 +282,20 @@ wss.on('connection', ws => {
         if (votedAction) {
             uniqueActionVotes[votedAction]--;
             clientVotes.delete(ws.id);
-            broadcastStateUpdate();
+        }
+        
+        // Clean up message votes
+        if (clientMessageVotes.has(ws.id)) {
+            const userVotes = clientMessageVotes.get(ws.id);
+            userVotes.forEach(opt => {
+                if (messageVotes[opt] > 0) messageVotes[opt]--;
+            });
+            clientMessageVotes.delete(ws.id);
+            broadcastMessageState();
         }
 
         console.log(`Client disconnected (${ws.id}). Total clients: ${getClientCount()}`);
         broadcast({ type: "client_count", count: getClientCount() });
+        broadcastStateUpdate(); // Ensure map votes are updated
     });
 });
