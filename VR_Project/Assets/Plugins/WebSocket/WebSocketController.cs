@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 using NativeWebSocket;
 using System.Collections;
 using System.Threading.Tasks;
@@ -9,68 +10,112 @@ using System.Threading.Tasks;
 /// </summary>
 public class WebSocketController : MonoBehaviour
 {
-    [Header("VR & Lights")]
-    public Transform vrPlayer;
-    public Light sunLight;
-    public Light rainLight;
-    public Light light1;
-    public Light light2;
+    public static WebSocketController Instance;
 
-    // The WebSocket instance used to communicate with the server
+    [Header("Connection")]
+    public string serverUrl = "ws://localhost:3000";
+
+    [Header("Server Actions")]
+    public UnityEvent OnDoorOpen;
+    public UnityEvent OnDoorClose;
+    public UnityEvent OnLightOn;
+    public UnityEvent OnLightOff;
+    public UnityEvent OnSound1;
+    public UnityEvent OnSound2;
+
+    private bool isLightOn = false;
+    private bool isDoorClosed = false;
+
+    [Header("Map Settings")]
+    public Transform playerTransform;
+    public float minX = -50f;
+    public float maxX = 50f;
+    public float minZ = -50f;
+    public float maxZ = 50f;
+
+    [Header("Game Events")]
+    public UnityEvent<string> OnAudienceMessage; // When "vr_message_sent" is received
+    public UnityEvent<VoteUpdateData> OnVoteUpdate; // When "update" is received
+
     private WebSocket websocket;
+
+    void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
     async void Start()
     {
-        if (vrPlayer == null) Debug.LogError("vrPlayer not assigned!");
+        websocket = new WebSocket(serverUrl);
 
-        // Initialize the WebSocket with the server URL.
-        // "wss://" indicates a secure WebSocket connection (like https).
-        websocket = new WebSocket("ws://localhost:3000");
+        websocket.OnOpen += () => Debug.Log("[WebSocket] Connection open!");
+        websocket.OnError += (e) => Debug.LogError("[WebSocket] Error: " + e);
+        websocket.OnClose += (e) => Debug.Log("[WebSocket] Connection closed!");
 
-        // Subscribe to WebSocket events
-        websocket.OnOpen += () => Debug.Log("[WebSocket] OPEN"); // Called when connection is established
-        websocket.OnError += (e) => Debug.LogError("[WebSocket] ERROR: " + e); // Called when an error occurs
-        websocket.OnClose += (e) => Debug.LogWarning("[WebSocket] CLOSED"); // Called when connection is closed
-
-        // Called when a message is received from the server
         websocket.OnMessage += (bytes) =>
         {
-            // Convert the received bytes to a string
-            string msg = System.Text.Encoding.UTF8.GetString(bytes);
-            Debug.Log("[WebSocket] RECEIVED: " + msg);
-
-            try
-            {
-                // Parse the JSON message into a VoteUpdate object
-                var voteData = JsonUtility.FromJson<VoteUpdate>(msg);
-                
-                // Check the message type and handle accordingly
-                if (voteData.type == "update")
-                {
-                    HandleVoteUpdate(voteData);
-                }
-                else if (voteData.type == "round_start")
-                {
-                    Debug.Log("New round started: " + voteData.round.name);
-                }
-            }
-            catch { /* ignore non-vote messages or JSON parsing errors */ }
+            // Dispatch to main thread is handled in Update, but we can parse here or there.
+            // NativeWebSocket callbacks run on the main thread if DispatchMessageQueue is called.
+            string message = System.Text.Encoding.UTF8.GetString(bytes);
+            Debug.Log("[WebSocket] Received: " + message);
+            HandleMessage(message);
         };
 
-        try
+        StartCoroutine(SendPlayerLocationRoutine());
+        await websocket.Connect();
+    }
+
+    IEnumerator SendPlayerLocationRoutine()
+    {
+        Debug.Log("[WebSocket] Routine Started");
+        while (true)
         {
-            // Attempt to connect to the server asynchronously
-            await websocket.Connect();
-            Debug.Log("WebSocket connected. Starting position updates...");
-            
-            // Start sending position updates periodically
-            StartCoroutine(PositionUpdateCoroutine());
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("WebSocket failed to connect: " + e);
+            if (websocket != null && websocket.State == WebSocketState.Open && playerTransform != null)
+            {
+                float x = Mathf.InverseLerp(minX, maxX, playerTransform.position.x) * 100f;
+                float y = Mathf.InverseLerp(minZ, maxZ, playerTransform.position.z) * 100f;
+                
+                // Clamp to 0-100
+                x = Mathf.Clamp(x, 0f, 100f);
+                y = Mathf.Clamp(y, 0f, 100f);
+
+                // Invert Y because Unity Z increases upwards (North) but HTML Y increases downwards
+                y = 100f - y; 
+
+                // Debug logs to verify coordinates
+                Debug.Log($"[WebSocket] Player Pos: {playerTransform.position}, Map Coords: {x}%, {y}%");
+
+                var data = new PlayerLocationData 
+                { 
+                    type = "player_location", 
+                    location = new Location { x = x, y = y } 
+                };
+                
+                string json = JsonUtility.ToJson(data);
+                Debug.Log($"[WebSocket] Sending: {json} | Player: {playerTransform.position} | Bounds X:{minX}~{maxX} Z:{minZ}~{maxZ}");
+                websocket.SendText(json);
+            }
+            else
+            {
+                if (websocket == null) Debug.LogWarning("[WebSocket] WebSocket object is null");
+                else if (websocket.State != WebSocketState.Open) Debug.LogWarning($"[WebSocket] Connection not open. State: {websocket.State}");
+                
+                if (playerTransform == null) Debug.LogError("[WebSocket] Player Transform is NOT assigned in Inspector!");
+            }
+            yield return new WaitForSeconds(0.2f);
         }
     }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.yellow;
+        // Draw a wire cube representing the map boundaries
+        Vector3 center = new Vector3((minX + maxX) / 2, playerTransform != null ? playerTransform.position.y : 0, (minZ + maxZ) / 2);
+        Vector3 size = new Vector3(Mathf.Abs(maxX - minX), 10f, Mathf.Abs(maxZ - minZ));
+        Gizmos.DrawWireCube(center, size);
+    }
+
 
 #if !UNITY_WEBGL || UNITY_EDITOR
     void Update()
@@ -81,144 +126,186 @@ public class WebSocketController : MonoBehaviour
     }
 #endif
 
-    // Coroutine to send player position updates at a fixed interval
-    private IEnumerator PositionUpdateCoroutine()
+    private void HandleMessage(string json)
     {
-        while (this != null && websocket != null && websocket.State == WebSocketState.Open)
-        {
-            if (vrPlayer == null) yield break;
-
-            SendPosition();
-            // Wait for 0.05 seconds (20 times per second)
-            yield return new WaitForSeconds(0.05f);
-        }
-    }
-
-    // Sends the current VR player position to the server
-    private async void SendPosition()
-    {
-        if (websocket == null || websocket.State != WebSocketState.Open) return;
-
-        // Create a data object with the position
-        var pos = new PlayerPosition
-        {
-            type = "player_position",
-            x = vrPlayer.position.x,
-            y = vrPlayer.position.y,
-            z = vrPlayer.position.z
-        };
-
-        // Convert the object to a JSON string
-        string json = JsonUtility.ToJson(pos);
-        
-        // Send the JSON string to the server
-        await websocket.SendText(json);
-    }
-
-    // Updates the scene (lights/weather) based on voting data received from the server
-    private void HandleVoteUpdate(VoteUpdate data)
-    {
-        // Check which round is currently active
-        if (data.round.name == "weather")
-        {
-            // Compare votes for rain vs sunny
-            if (data.votes.rain > data.votes.sunny)
-            {
-                if (rainLight != null) rainLight.enabled = true;
-                if (sunLight != null) sunLight.enabled = false;
-            }
-            else
-            {
-                if (rainLight != null) rainLight.enabled = false;
-                if (sunLight != null) sunLight.enabled = true;
-            }
-        }
-        else if (data.round.name == "lights")
-        {
-            // Compare votes for light1 vs light2
-            if (data.votes.light1 > data.votes.light2)
-            {
-                if (light1 != null) light1.enabled = true;
-                if (light2 != null) light2.enabled = false;
-            }
-            else
-            {
-                if (light1 != null) light1.enabled = false;
-                if (light2 != null) light2.enabled = true;
-            }
-        }
-    }
-
-    // Helper method to send a generic game event to the server
-    public async void SendGameEvent(string eventJson)
-    {
-        if (websocket == null || websocket.State != WebSocketState.Open)
-        {
-            Debug.LogWarning("WebSocket not open. Cannot send event.");
-            return;
-        }
-
         try
         {
-            await websocket.SendText(eventJson);
-            Debug.Log("[WebSocket] SENT EVENT: " + eventJson);
+            // Parse just the type first
+            ServerMessage baseMsg = JsonUtility.FromJson<ServerMessage>(json);
+
+            switch (baseMsg.type)
+            {
+                case "update":
+                    var updateData = JsonUtility.FromJson<VoteUpdateMessage>(json);
+                    var data = new VoteUpdateData 
+                    { 
+                        votes = updateData.votes, 
+                        totalClients = updateData.totalClients, 
+                        playerInArea = updateData.playerInArea 
+                    };
+                    OnVoteUpdate?.Invoke(data);
+                    break;
+
+                case "action":
+                    var actionMsg = JsonUtility.FromJson<ActionMessage>(json);
+                    HandleAction(actionMsg.command);
+                    break;
+
+                case "vr_message_sent":
+                    var vrMsg = JsonUtility.FromJson<VRMessageSent>(json);
+                    Debug.Log("VR Message from Audience: " + vrMsg.message);
+                    OnAudienceMessage?.Invoke(vrMsg.message);
+                    break;
+                
+                case "assign_username":
+                    Debug.Log("Assigned username: " + JsonUtility.FromJson<AssignUsernameMessage>(json).username);
+                    break;
+            }
         }
         catch (System.Exception e)
         {
-            Debug.LogError("Failed to send event: " + e.Message);
+            Debug.LogError("Error parsing message: " + e.Message);
         }
     }
 
-    // Close the WebSocket connection when the application quits
-    async void OnApplicationQuit()
+    private void HandleAction(string command)
     {
-        if (websocket != null)
-            await websocket.Close();
+        switch (command)
+        {
+            case "close_door":
+                if (isDoorClosed)
+                {
+                    OnDoorOpen?.Invoke();
+                    isDoorClosed = false;
+                }
+                else
+                {
+                    OnDoorClose?.Invoke();
+                    isDoorClosed = true;
+                }
+                break;
+            case "light":
+                if (isLightOn)
+                {
+                    OnLightOff?.Invoke();
+                    isLightOn = false;
+                }
+                else
+                {
+                    OnLightOn?.Invoke();
+                    isLightOn = true;
+                }
+                break;
+            case "sound_1": OnSound1?.Invoke(); break;
+            case "sound_2": OnSound2?.Invoke(); break;
+            default: Debug.LogWarning("Unknown action command: " + command); break;
+        }
     }
 
-    void OnDestroy()
+    // Public methods for other scripts to call
+
+    public async void SendGameEvent(string eventId)
     {
-        StopAllCoroutines();
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new GameEventData { type = "game_event", event_id = eventId };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    public async void SendVRMessage(string message)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new VRMessageData { type = "vr_message", message = message };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    public async void StartMessageVote(string[] options)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new StartVoteData { type = "start_message_vote", options = options };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    private async void OnApplicationQuit()
+    {
+        if (websocket != null) await websocket.Close();
     }
 }
 
-// ---------------------
-// JSON Models
-// These classes match the structure of the JSON data sent to/from the server.
-// ---------------------
+// Data Structures
 
-// Data structure for sending player position
 [System.Serializable]
-public class PlayerPosition
+public class ServerMessage
 {
     public string type;
-    public float x, y, z;
 }
 
-// Data structure for receiving vote updates
 [System.Serializable]
-public class VoteUpdate
+public class VoteUpdateMessage : ServerMessage
 {
-    public string type;
     public Votes votes;
-    public RoundInfo round;
+    public int totalClients;
+    public bool playerInArea;
 }
 
-// Nested class for vote counts
 [System.Serializable]
 public class Votes
 {
-    public int sunny;
-    public int rain;
-    public int light1;
-    public int light2;
+    public int close_door;
+    public int light;
+    public int sound_1;
+    public int sound_2;
 }
 
-// Nested class for round information
 [System.Serializable]
-public class RoundInfo
+public class VoteUpdateData
 {
-    public string name;
+    public Votes votes;
+    public int totalClients;
+    public bool playerInArea;
+}
+
+[System.Serializable]
+public class ActionMessage : ServerMessage
+{
+    public string command;
+}
+
+[System.Serializable]
+public class VRMessageSent : ServerMessage
+{
+    public string message;
+}
+
+[System.Serializable]
+public class AssignUsernameMessage : ServerMessage
+{
+    public string username;
+}
+
+[System.Serializable]
+public class GameEventData
+{
+    public string type;
+    public string event_id;
+}
+
+[System.Serializable]
+public class VRMessageData
+{
+    public string type;
+    public string message;
+}
+
+[System.Serializable]
+public class StartVoteData
+{
+    public string type;
     public string[] options;
 }
 
@@ -228,4 +315,18 @@ public class TriggerEvent
 {
     public string type = "game_event";
     public string event_id;            
+}
+
+[System.Serializable]
+public class PlayerLocationData
+{
+    public string type;
+    public Location location;
+}
+
+[System.Serializable]
+public class Location
+{
+    public float x;
+    public float y;
 }

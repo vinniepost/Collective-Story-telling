@@ -1,0 +1,25 @@
+<div class="chat-panel">
+      <div class="panel-header">OPERATOR CHAT CHANNEL</div>
+      
+      <div class="chat-history" #scrollContainer>
+        @for (msg of ws.chatMessages(); track $index) {
+          <div class="chat-message">
+            <span class="timestamp">[{{ msg.timestamp | date:'HH:mm:ss' }}]</span>
+            <span class="username" [class.me]="msg.username === ws.username()">{{ msg.username }}:</span>
+            <span class="message-text">{{ msg.text }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="chat-input-area">
+        <div class="my-username">{{ ws.username() }}</div>
+        <input 
+          type="text" 
+          [(ngModel)]="newMessage" 
+          (keyup.enter)="sendMessage()"
+          placeholder="Type command..."
+          [disabled]="!ws.isConnected()"
+        >
+        <button (click)="sendMessage()" [disabled]="!ws.isConnected() || !newMessage.trim()">SEND</button>
+      </div>
+    </div>

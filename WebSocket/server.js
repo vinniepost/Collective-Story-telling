@@ -24,6 +24,7 @@ const availableActions = ["close_door", "light", "sound_1", "sound_2"];
 let uniqueActionVotes = {};
 let clientVotes = new Map();
 let playerInSecretArea = false;
+let playerLocation = { x: 0, y: 0 };
 
 // Operator Chat System
 let nextOperatorId = 1;
@@ -197,6 +198,11 @@ wss.on('connection', ws => {
         votes: messageVotes
     }));
 
+    ws.send(JSON.stringify({
+        type: "player_location",
+        playerLocation: playerLocation
+    }));
+
     broadcast({ type: "client_count", count: getClientCount() });
 
     ws.on('message', message => {
@@ -270,6 +276,14 @@ wss.on('connection', ws => {
             // Allow Unity/Admin to send direct logs to terminals
             if (data.type === 'broadcast_log') {
                 broadcast({ type: "notification", message: data.message });
+            }
+
+            if (data.type === 'player_location') {
+                playerLocation = data.location;
+                broadcast({
+                    type: 'player_location',
+                    playerLocation: playerLocation
+                });
             }
 
         } catch (e) {

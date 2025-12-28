@@ -6,11 +6,17 @@ export interface TerminalMessage {
   type: 'info' | 'alert' | 'success' | 'warning';
 }
 
+export interface PlayerLocation {
+  x: number;
+  y: number;
+}
+
 export interface GameState {
   type: string;
   votes?: { [key: string]: number };
   totalClients?: number;
   playerInArea?: boolean;
+  playerLocation?: PlayerLocation;
   command?: string;
   message?: string | ChatMessage;
   votedAction?: string;
@@ -38,6 +44,7 @@ export class WebSocketService {
   public votes = signal<{ [key: string]: number }>({});
   public totalClients = signal<number>(0);
   public playerInArea = signal<boolean>(false);
+  public playerLocation = signal<PlayerLocation | null>(null);
   public lastAction = signal<string | null>(null);
   public terminalMessages = signal<TerminalMessage[]>([]);
   
@@ -99,6 +106,9 @@ export class WebSocketService {
         if (data.votes) this.votes.set(data.votes);
         if (data.totalClients !== undefined) this.totalClients.set(data.totalClients);
         if (data.playerInArea !== undefined) this.playerInArea.set(data.playerInArea);
+        break;
+      case 'player_location':
+        if (data.playerLocation) this.playerLocation.set(data.playerLocation);
         break;
       case 'client_count':
         if (data.count !== undefined) this.totalClients.set(data.count);

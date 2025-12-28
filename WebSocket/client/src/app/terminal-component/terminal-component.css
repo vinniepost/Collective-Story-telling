@@ -1,0 +1,90 @@
+
+.terminal-box {
+    background-color: #000;
+    border: 2px solid #00FF00;
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    height: 100%;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Non-scrollable */
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+.terminal-header {
+    color: #00FF00;
+    border-bottom: 1px solid #004d00;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.blink {
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+.terminal-content {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.messages-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-entry {
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@media (max-width: 768px) {
+    .terminal-header {
+        font-size: 12px;
+    }
+    .log-entry {
+        font-size: 10px;
+    }
+}
+
+.timestamp {
+    color: #666;
+    margin-right: 8px;
+}
+
+.message {
+    color: #ccc;
+}
+
+/* Message Types */
+.info .message { color: #ccc; }
+.success .message { color: #00FF00; }
+.warning .message { color: #FFD700; }
+.alert .message { color: #FF0000; font-weight: bold; }
+
+.blink {
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

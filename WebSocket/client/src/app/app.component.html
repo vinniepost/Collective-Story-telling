@@ -12,21 +12,15 @@
       </div>
   </header>
 
-  <div id="map-container">
-      <app-map-component 
-        [disabled]="hasVoted()" 
-        [votes]="ws.votes()"
-        [totalClients]="ws.totalClients()"
-        (action)="vote($event)">
-      </app-map-component>
-  </div>
   
-  <div id="terminal-container" style="display: flex; flex-direction: column; padding: 10px 0;">
-      <app-terminal-component style="flex: 1;"></app-terminal-component>
-  </div>
-
-  <div id="bottom-container" style="grid-column: 1 / -1; display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-      <app-message-component style="height: 100%;"></app-message-component>
-      <app-operator-chat-component style="height: 100%;"></app-operator-chat-component>
-  </div>
+  <app-map-component class="map-panel"
+    [disabled]="hasVoted()" 
+    [votes]="ws.votes()"
+    [totalClients]="ws.totalClients()"
+    [playerLocation]="ws.playerLocation()"
+    (action)="vote($event)">
+  </app-map-component>
+  <app-terminal-component class="terminal-box"></app-terminal-component>
+  <app-message-component class="message-box"></app-message-component>
+  <app-operator-chat-component class="operator-chat-box"></app-operator-chat-component>
 </div>

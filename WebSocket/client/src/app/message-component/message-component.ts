@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, effect, OnDestroy } from '@angular/core';
 import { WebSocketService } from '../websocket.service';
 import { CommonModule } from '@angular/common';
 
@@ -11,35 +11,49 @@ import { CommonModule } from '@angular/common';
     <div class="message-panel">
       <div class="panel-header">COMMUNICATION LINK</div>
       
-      <div class="vr-message-box">
-        <div class="label">INCOMING TRANSMISSION:</div>
-        <div class="message-text">
-          @if (ws.vrMessage()) {
-            "{{ ws.vrMessage() }}"
+      <div class="content-grid">
+        <!-- Left Column: Incoming Message -->
+        <div class="left-column">
+          <div class="vr-message-box">
+            <div class="message-text">
+              @if (ws.vrMessage()) {
+                <span>{{ displayedMessage() }}<span class="cursor">█</span></span>
+              } @else {
+                <span class="placeholder">NO SIGNAL...</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Voting Options -->
+        <div class="right-column">
+          @if (ws.messageOptions().length > 0) {
+            <div class="response-section">
+              <div class="label">SELECT RESPONSE:</div>
+              <div class="options-list">
+                @for (option of ws.messageOptions(); track option) {
+                  <button class="option-btn" 
+                          (click)="vote(option)"
+                          [class.voted]="hasVotedFor(option)">
+                    <div class="option-header">
+                      <span class="option-text">{{ option }}</span>
+                      <span class="vote-count">{{ getVoteCount(option) }}/{{ requiredVotes() }}</span>
+                    </div>
+                    <div class="progress-bar">
+                      <div class="progress-fill" [style.width.%]="getVotePercentage(option)"></div>
+                    </div>
+                  </button>
+                }
+              </div>
+            </div>
           } @else {
-            <span class="placeholder">NO SIGNAL...</span>
+            <div class="waiting-message">
+              <div class="label">STATUS:</div>
+              <div class="status-text">WAITING FOR INPUT...</div>
+            </div>
           }
         </div>
       </div>
-
-      @if (ws.messageOptions().length > 0) {
-        <div class="response-section">
-          <div class="label">SELECT RESPONSE ({{ requiredVotes() }} VOTES REQUIRED):</div>
-          <div class="options-grid">
-            @for (option of ws.messageOptions(); track option) {
-              <button class="option-btn" 
-                      (click)="vote(option)"
-                      [class.voted]="hasVotedFor(option)">
-                <div class="option-text">{{ option }}</div>
-                <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="getVotePercentage(option)"></div>
-                </div>
-                <div class="vote-count">{{ getVoteCount(option) }}/{{ requiredVotes() }}</div>
-              </button>
-            }
-          </div>
-        </div>
-      }
     </div>
   `,
   styles: `
@@ -50,6 +64,10 @@ import { CommonModule } from '@angular/common';
       color: #fff;
       font-family: 'Courier New', Courier, monospace;
       box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
     }
 
     .panel-header {
@@ -59,44 +77,107 @@ import { CommonModule } from '@angular/common';
       padding-bottom: 5px;
       margin-bottom: 15px;
       font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex-grow: 1;
+      min-height: 0; /* Allow scrolling if needed */
+    }
+
+    .left-column, .right-column {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     .vr-message-box {
       background-color: #050505;
       border: 1px solid #004d00;
       padding: 15px;
-      margin-bottom: 20px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     .label {
       font-size: 12px;
       color: #00FF00;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
       font-weight: bold;
+      text-transform: uppercase;
     }
 
     .message-text {
-      font-size: 18px;
+      font-size: 22px;
       color: #fff;
       font-style: italic;
-      min-height: 24px;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 12px;
+      height: 1.3em;
+      font-size: 22px;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
     }
 
     .placeholder {
       color: #444;
       font-style: normal;
+      font-size: 18px;
     }
 
-    .options-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    .response-section {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
       gap: 10px;
+      overflow-y: auto;
+      flex-grow: 1;
+      padding-right: 5px; /* Space for scrollbar */
+    }
+
+    /* Custom Scrollbar */
+    .options-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .options-list::-webkit-scrollbar-track {
+      background: #001100;
+    }
+    .options-list::-webkit-scrollbar-thumb {
+      background: #004d00;
+    }
+    .options-list::-webkit-scrollbar-thumb:hover {
+      background: #00FF00;
     }
 
     .option-btn {
       background-color: #000;
       border: 1px solid #004d00;
-      padding: 10px;
+      padding: 2px;
       color: #00FF00;
       cursor: pointer;
       position: relative;
@@ -104,6 +185,8 @@ import { CommonModule } from '@angular/common';
       text-align: left;
       transition: all 0.2s;
       font-family: 'Courier New', Courier, monospace;
+      width: 100%;
+      flex-shrink: 0;
     }
 
     .option-btn:hover {
@@ -118,19 +201,22 @@ import { CommonModule } from '@angular/common';
       color: #fff;
     }
 
-    .option-text {
+    .option-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
       position: relative;
       z-index: 2;
-      margin-bottom: 5px;
-      font-size: 14px;
+    }
+
+    .option-text {
+      font-size: 16px;
       font-weight: bold;
     }
 
     .vote-count {
-      position: relative;
-      z-index: 2;
-      font-size: 10px;
-      text-align: right;
+      font-size: 12px;
       color: #00aa00;
     }
 
@@ -148,10 +234,71 @@ import { CommonModule } from '@angular/common';
       background-color: #00FF00;
       transition: width 0.3s ease;
     }
+
+    .waiting-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      border: 1px dashed #004d00;
+      color: #444;
+      background-color: #050505;
+    }
+
+    .status-text {
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .vr-message-box {
+        min-height: 150px;
+      }
+    }
   `
 })
-export class MessageComponent {
+export class MessageComponent implements OnDestroy {
   ws = inject(WebSocketService);
+  
+  displayedMessage = signal<string>("");
+  private typingInterval: any;
+
+  constructor() {
+    effect(() => {
+      const targetMessage = this.ws.vrMessage();
+      
+      if (this.typingInterval) {
+        clearInterval(this.typingInterval);
+      }
+
+      if (!targetMessage) {
+        this.displayedMessage.set("");
+        return;
+      }
+
+      this.displayedMessage.set("");
+      let i = 0;
+      
+      this.typingInterval = setInterval(() => {
+        if (i < targetMessage.length) {
+          this.displayedMessage.update(m => m + targetMessage.charAt(i));
+          i++;
+        } else {
+          clearInterval(this.typingInterval);
+        }
+      }, 50);
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.typingInterval) clearInterval(this.typingInterval);
+  }
   
   // Local tracking of what user voted for (for UI feedback)
   myVotes = signal<Set<string>>(new Set());

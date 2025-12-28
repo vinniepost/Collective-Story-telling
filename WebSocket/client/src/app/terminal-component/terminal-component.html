@@ -1,0 +1,15 @@
+<div class="terminal-box">
+      <div class="terminal-header">
+        <span class="blink">>_</span> SYSTEM LOG
+      </div>
+      <div class="terminal-content">
+        <div class="messages-wrapper">
+          @for (msg of ws.terminalMessages(); track msg.timestamp) {
+            <div class="log-entry" [ngClass]="msg.type">
+              <span class="timestamp">[{{ msg.timestamp | date:'HH:mm:ss' }}]</span>
+              <span class="message">{{ msg.text }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
