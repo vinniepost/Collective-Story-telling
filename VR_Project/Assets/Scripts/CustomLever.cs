@@ -1,6 +1,8 @@
 using System;
+using UnityEditor.SearchService;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
@@ -13,6 +15,7 @@ public class CustomLever : MonoBehaviour
     [Header("Event Function")]
     [SerializeField] private bool lightBool = false;
     [SerializeField] private bool teleportBool = false;
+    [SerializeField] private bool sceneCangeBool = false;
     
 
     [Header("Light Settings")]
@@ -25,6 +28,9 @@ public class CustomLever : MonoBehaviour
     [SerializeField] private bool status = false;
     [SerializeField] private GameObject handle;
     [SerializeField] private float triggerValue = 80f;
+
+    [Header("Scene change settings")]
+    [SerializeField] private string sceneName;
 
 
     private void Start()
@@ -45,6 +51,11 @@ public class CustomLever : MonoBehaviour
         }
         else if (status && teleportBool)
         {
+        }
+        else if (status && teleportBool)
+        {
+            Debug.Log("Teleprt");
+            ChangeScene(sceneName);
         }
         else if (!status) { }
         else
@@ -80,4 +91,16 @@ public class CustomLever : MonoBehaviour
         }*/
     }
 
+    private void ChangeScene(string sceneName)
+    {
+        if (sceneName == null)
+        {
+            Debug.Log($"No scene with name {sceneName} found, renaming it to main.");
+            sceneName = "main";
+        }
+
+
+        SceneManager.LoadScene(sceneName);
+
+    }
 }
