@@ -7,7 +7,9 @@ public class DoorController : MonoBehaviour
     [Header("References")]
     public Animator doorAnimator;
     public Light statusLight;
-    public CustomLever lever; 
+    public Light statusLight2;
+    public CustomLever lever;
+    public CustomLever lever2;
     
     [Header("Settings")]
     public Color lockedColor = Color.red;
@@ -28,7 +30,7 @@ public class DoorController : MonoBehaviour
         if (lever != null && canBeOpened)
         {
             // Check if player pulled lever
-            if (lever.LeverStatus) 
+            if (lever.LeverStatus || lever2.LeverStatus) 
             {
                 OnLeverPulled();
             }
@@ -45,16 +47,23 @@ public class DoorController : MonoBehaviour
                 statusLight.color = lockedColor;
                 statusLight.intensity = 5f;
                 statusLight.enabled = true;
+                statusLight2.color = lockedColor;
+                statusLight2.intensity = 5f;
+                statusLight2.enabled = true;
             }
             else if (unlockable)
             {
                 statusLight.color = unlockableColor;
                 statusLight.intensity = 5f;
                 statusLight.enabled = true;
+                statusLight2.color = unlockableColor;
+                statusLight2.intensity = 5f;
+                statusLight2.enabled = true;
             }
             else
             {
                 statusLight.enabled = false;
+                statusLight2.enabled = false;
             }
         }
     }
@@ -70,6 +79,7 @@ public class DoorController : MonoBehaviour
         UpdateVisuals(true, false);
 
         if (lever != null) lever.LeverStatus = false; 
+        if (lever2 != null) lever2.LeverStatus = false;
     }
 
     // Called by MapControlManager when Server says "DOOR UNLOCKABLE"

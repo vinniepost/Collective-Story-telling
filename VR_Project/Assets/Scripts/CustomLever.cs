@@ -33,62 +33,92 @@ public class CustomLever : MonoBehaviour
     [SerializeField] private string sceneName;
 
 
+    [Header("Reset Settings")]
+    [SerializeField] private bool autoReset = true;
+    [SerializeField] private float resetDelay = 3.0f;
+    [SerializeField] private float resetDuration = 0.5f;
+
+    private Quaternion initialRotation;
+    private bool isResetting = false;
+
     private void Start()
     {
         if (handle == null)
         {
             handle = this.gameObject;
         }
+        initialRotation = handle.transform.localRotation;
     }
+
     private void Update()
     {
-        status = StatusChange(handle, triggerValue);
+        // Only update status if not currently resetting
+        if (!isResetting)
+        {
+            bool newStatus = StatusChange(handle, triggerValue);
+            
+            // If status changed to true and we want auto reset
+            if (newStatus && !status && autoReset)
+            {
+                StartCoroutine(ResetLeverRoutine());
+            }
 
-        if (status && lightBool)
-        {
-            Debug.Log("Light");
-            ChangeLightStatus(lightSource);
-        }
-        else if (status && teleportBool)
-        {
-        }
-        else if (status && teleportBool)
-        {
-            Debug.Log("Teleprt");
-            ChangeScene(sceneName);
-        }
-        else if (!status) { }
-        else
-        { Debug.Log($"{this.gameObject.name} has no function assigned to it"); }
+            status = newStatus;
 
+            if (status) 
+            {
+                if (lightBool) ChangeLightStatus(lightSource);
+                if (teleportBool) { /* Teleport Logic */ }
+                if (sceneCangeBool) ChangeScene(sceneName);
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator ResetLeverRoutine()
+    {
+        yield return new WaitForSeconds(resetDelay);
+
+        isResetting = true;
+        
+        // Disable interactions? If it's XR Interactable, might need to force drop.
+        // For now, simpler lerp of transform.
+        
+        Quaternion currentRot = handle.transform.localRotation;
+        float elapsed = 0f;
+
+        while (elapsed < resetDuration)
+        {
+            handle.transform.localRotation = Quaternion.Slerp(currentRot, initialRotation, elapsed / resetDuration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        handle.transform.localRotation = initialRotation;
+        status = false; // Force status false
+        isResetting = false;
+        
+        Debug.Log("Lever Reset");
     }
 
     /// <summary>
     /// Returns true when the current rotation is larger then the triggerValue
-    ///
     /// </summary>
-    /// <param name="handle">Object that is being rotated</param>
-    /// <param name="triggerValue">Value for the rotation, should be somewhere around 80</param>
-    /// <returns></returns>
     private bool StatusChange(GameObject handle, float triggerValue = 80f)
     {
         float currentValue = handle.transform.localEulerAngles.x;
-        if (currentValue < triggerValue) return true;
-        else return false;
+        // Fix for Euler angles wrapping (if needed). 
+        // Assuming simplistic check as per original code.
+        return currentValue < triggerValue;
     }
 
     private void ChangeLightStatus(Light light)
     {
+        if (light == null) return;
         float currentStatus = light.intensity;
-        Debug.Log(currentStatus);
         if (currentStatus > 0f)
         {
             light.intensity = 0f;
         }
-        /*else 
-        { 
-            light.intensity = 1f;
-        }*/
     }
 
     private void ChangeScene(string sceneName)
@@ -98,9 +128,6 @@ public class CustomLever : MonoBehaviour
             Debug.Log($"No scene with name {sceneName} found, renaming it to main.");
             sceneName = "main";
         }
-
-
         SceneManager.LoadScene(sceneName);
-
     }
 }
