@@ -5926,6 +5926,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: leverVinnie 1
       objectReference: {fileID: 0}
+    - target: {fileID: 2991820241547835313, guid: 8249c65a0916fc844a42ddb320a5c09a, type: 3}
+      propertyPath: sceneName
+      value: main
+      objectReference: {fileID: 0}
     - target: {fileID: 8794421727603357451, guid: 8249c65a0916fc844a42ddb320a5c09a, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.18678004
