@@ -11,9 +11,23 @@ export interface PlayerLocation {
   y: number;
 }
 
+export interface MapSection {
+  id: string;
+  lightsOn: boolean;
+}
+
+export interface MapDoor {
+  id: string;
+  isClosed: boolean;
+  lastClosedTime: number;
+}
+
 export interface GameState {
   type: string;
+  sections?: MapSection[];
+  doors?: MapDoor[];
   votes?: { [key: string]: number };
+  doorCooldown?: number;
   totalClients?: number;
   playerInArea?: boolean;
   playerLocation?: PlayerLocation;
@@ -25,6 +39,8 @@ export interface GameState {
   options?: string[];
   username?: string;
   messages?: ChatMessage[];
+  duration?: number;
+  result?: 'escaped' | 'failed';
 }
 
 export interface ChatMessage {
@@ -38,7 +54,13 @@ export interface ChatMessage {
 })
 export class WebSocketService {
   private socket: WebSocket | null = null;
-  
+
+  // Map Signals
+  public sections = signal<MapSection[]>([]);
+  public doors = signal<MapDoor[]>([]);
+  public mapVotes = signal<{ [key: string]: number }>({});
+  public doorCooldown = signal<number>(0);
+
   // Signals for state
   public isConnected = signal<boolean>(false);
   public votes = signal<{ [key: string]: number }>({});
@@ -47,7 +69,7 @@ export class WebSocketService {
   public playerLocation = signal<PlayerLocation | null>(null);
   public lastAction = signal<string | null>(null);
   public terminalMessages = signal<TerminalMessage[]>([]);
-  
+
   // Message System Signals
   public vrMessage = signal<string>("");
   public messageOptions = signal<string[]>([]);
@@ -56,6 +78,9 @@ export class WebSocketService {
   // Operator Chat Signals
   public username = signal<string>("");
   public chatMessages = signal<ChatMessage[]>([]);
+  public codeRedActive = signal<boolean>(false);
+  public codeRedTimer = signal<number>(0);
+  public codeRedResult = signal<'escaped' | 'failed' | null>(null);
 
   constructor() {
     this.connect();
@@ -102,6 +127,13 @@ export class WebSocketService {
 
   private handleMessage(data: GameState) {
     switch (data.type) {
+      case 'map_update':
+        if (data.sections) this.sections.set(data.sections);
+        if (data.doors) this.doors.set(data.doors);
+        if (data.votes) this.mapVotes.set(data.votes);
+        if (data.doorCooldown !== undefined) this.doorCooldown.set(data.doorCooldown);
+        if (data.totalClients !== undefined) this.totalClients.set(data.totalClients);
+        break;
       case 'update':
         if (data.votes) this.votes.set(data.votes);
         if (data.totalClients !== undefined) this.totalClients.set(data.totalClients);
@@ -151,6 +183,30 @@ export class WebSocketService {
           });
         }
         break;
+      case 'code_red':
+        if (data.duration) {
+          this.codeRedActive.set(true);
+          this.codeRedResult.set(null); // Reset result
+          this.codeRedTimer.set(data.duration);
+
+          // Start countdown
+          const interval = setInterval(() => {
+            const current = this.codeRedTimer();
+            if (current <= 0) {
+              clearInterval(interval);
+              this.codeRedActive.set(false);
+            } else {
+              this.codeRedTimer.set(current - 1);
+            }
+          }, 1000);
+        }
+        break;
+      case 'code_red_result':
+        if (data.result) {
+          this.codeRedActive.set(false);
+          this.codeRedResult.set(data.result as 'escaped' | 'failed');
+        }
+        break;
     }
   }
 
@@ -161,8 +217,6 @@ export class WebSocketService {
   public addLog(text: string, type: 'info' | 'alert' | 'success' | 'warning' = 'info') {
     this.terminalMessages.update(msgs => {
       const newMsg: TerminalMessage = { timestamp: new Date(), text, type };
-      // Keep last 50 messages to allow filling larger screens.
-      // The UI will handle hiding the overflow (clipping the top).
       const updated = [...msgs, newMsg];
       return updated.length > 50 ? updated.slice(updated.length - 50) : updated;
     });

@@ -160,6 +160,16 @@ public class WebSocketController : MonoBehaviour
                 case "assign_username":
                     Debug.Log("Assigned username: " + JsonUtility.FromJson<AssignUsernameMessage>(json).username);
                     break;
+
+                case "door_closed":
+                    var closeMsg = JsonUtility.FromJson<DoorEventMessage>(json);
+                    MapControlManager.Instance.OnDoorClosed(closeMsg.doorId);
+                    break;
+
+                case "door_unlockable":
+                    var unlockMsg = JsonUtility.FromJson<DoorEventMessage>(json);
+                    MapControlManager.Instance.OnDoorUnlockable(unlockMsg.doorId);
+                    break;
             }
         }
         catch (System.Exception e)
@@ -221,6 +231,23 @@ public class WebSocketController : MonoBehaviour
             await websocket.SendText(JsonUtility.ToJson(data));
         }
     }
+
+    public async void SendDoorOpened(string doorId)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new DoorEventData { type = "door_opened", doorId = doorId };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    [System.Serializable]
+    public class DoorEventData
+    {
+        public string type;
+        public string doorId;
+    }
+
 
     public async void StartMessageVote(string[] options)
     {
@@ -286,6 +313,12 @@ public class VRMessageSent : ServerMessage
 public class AssignUsernameMessage : ServerMessage
 {
     public string username;
+}
+
+[System.Serializable]
+public class DoorEventMessage : ServerMessage
+{
+    public string doorId;
 }
 
 [System.Serializable]

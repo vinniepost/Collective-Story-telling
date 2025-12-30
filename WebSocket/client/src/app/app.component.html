@@ -1,26 +1,41 @@
 <div class="container">
   <header>
-      <div class="header-title">BAD COMPANY</div>
-      <div style="font-size: 14px;">
-        Viewers: <span>{{ ws.totalClients() }}</span>
-      </div>
-      <div class="network-status">
-        Network: 
-        <span [style.color]="ws.isConnected() ? '#00ff00' : '#ff0000'">
-          {{ ws.isConnected() ? 'STABLE' : 'UNSTABLE' }}
-        </span>
-      </div>
+    <div class="header-title">BAD COMPANY</div>
+    <div style="font-size: 14px;">
+      Viewers: <span>{{ ws.totalClients() }}</span>
+    </div>
+    <div class="network-status">
+      Network:
+      <span [style.color]="ws.isConnected() ? '#00ff00' : '#ff0000'">
+        {{ ws.isConnected() ? 'STABLE' : 'UNSTABLE' }}
+      </span>
+    </div>
   </header>
 
-  
-  <app-map-component class="map-panel"
-    [disabled]="hasVoted()" 
-    [votes]="ws.votes()"
-    [totalClients]="ws.totalClients()"
-    [playerLocation]="ws.playerLocation()"
-    (action)="vote($event)">
+
+  <app-map-component class="map-panel" [votes]="ws.mapVotes()" [sections]="ws.sections()" [doors]="ws.doors()"
+    [doorCooldown]="ws.doorCooldown()" [totalClients]="ws.totalClients()" [playerLocation]="ws.playerLocation()">
   </app-map-component>
   <app-terminal-component class="terminal-box"></app-terminal-component>
   <app-message-component class="message-box"></app-message-component>
   <app-operator-chat-component class="operator-chat-box"></app-operator-chat-component>
+
+  @if (ws.codeRedActive()) {
+  <div class="code-red-overlay" [class.minimized]="isMinimized()">
+    <div class="code-red-box">
+      <div class="code-red-title">⚠️ CODE RED: TECHNICIAN ROGUE ⚠️</div>
+      <div class="code-red-timer">{{ ws.codeRedTimer() }}</div>
+    </div>
+  </div>
+  }
+
+  @if (ws.codeRedResult()) {
+  <div class="result-overlay">
+    @if (ws.codeRedResult() === 'escaped') {
+    <div class="result-text escaped">SUBJECT ESCAPED<br>CONTAINMENT BREACHED</div>
+    } @else {
+    <div class="result-text failed">SUBJECT TERMINATED<br>PROTOCOL SECURED</div>
+    }
+  </div>
+  }
 </div>

@@ -15,7 +15,7 @@ import { OperatorChatComponent } from './operator-chat-component/operator-chat-c
 })
 export class App {
   ws = inject(WebSocketService);
-  
+
   hasVoted = signal(false);
 
   requiredVotes = computed(() => {
@@ -28,6 +28,8 @@ export class App {
     return Object.keys(this.ws.votes());
   });
 
+  isMinimized = signal(false);
+
   constructor() {
     // Reset vote when action happens
     effect(() => {
@@ -36,11 +38,26 @@ export class App {
         this.hasVoted.set(false);
       }
     }, { allowSignalWrites: true });
+
+    // Handle minimization timer
+    effect(() => {
+      if (this.ws.codeRedActive()) {
+        this.isMinimized.set(false);
+        const timer = setTimeout(() => {
+          this.isMinimized.set(true);
+        }, 3000); // 3 seconds full screen
+        return () => clearTimeout(timer);
+      } else {
+        // Reset when inactive
+        this.isMinimized.set(false);
+        return;
+      }
+    }, { allowSignalWrites: true });
   }
 
   vote(action: string) {
     if (this.hasVoted() || !this.ws.isConnected()) return;
-    
+
     this.ws.sendMessage({ type: 'vote', option: action });
     this.hasVoted.set(true);
   }

@@ -1,11 +1,12 @@
 .map-wrapper {
-      background-color: #000;
-      border: 2px solid #00FF00;
-      padding: 10px;
-      box-sizing: border-box;
-      box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
-      height: 100%;
-    }
+    background-color: #000;
+    border: 2px solid #00FF00;
+    padding: 10px;
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+    height: 100%;
+    position: relative;
+}
 
 .map-header {
     color: #00FF00;
@@ -29,7 +30,7 @@
     width: 100%;
     height: auto;
     display: block;
-    opacity: 1; 
+    opacity: 0.6;
 }
 
 .player-marker {
@@ -41,10 +42,229 @@
     text-shadow: 0 0 5px #00FF00;
 }
 
+.map-entity {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+}
+
+/* Default Grid Layout for Sections (User will move these) */
+/* Distribute 21 sections in a 5x5 grid roughly */
+#section_0 {
+    top: 10%;
+    left: 10%;
+}
+
+#section_1 {
+    top: 10%;
+    left: 30%;
+}
+
+#section_2 {
+    top: 10%;
+    left: 50%;
+}
+
+#section_3 {
+    top: 10%;
+    left: 70%;
+}
+
+#section_4 {
+    top: 10%;
+    left: 90%;
+}
+
+#section_5 {
+    top: 25%;
+    left: 10%;
+}
+
+#section_6 {
+    top: 25%;
+    left: 30%;
+}
+
+#section_7 {
+    top: 25%;
+    left: 50%;
+}
+
+#section_8 {
+    top: 25%;
+    left: 70%;
+}
+
+#section_9 {
+    top: 25%;
+    left: 90%;
+}
+
+#section_10 {
+    top: 40%;
+    left: 10%;
+}
+
+#section_11 {
+    top: 40%;
+    left: 30%;
+}
+
+#section_12 {
+    top: 40%;
+    left: 50%;
+}
+
+#section_13 {
+    top: 40%;
+    left: 70%;
+}
+
+#section_14 {
+    top: 40%;
+    left: 90%;
+}
+
+#section_15 {
+    top: 55%;
+    left: 10%;
+}
+
+#section_16 {
+    top: 55%;
+    left: 30%;
+}
+
+#section_17 {
+    top: 55%;
+    left: 50%;
+}
+
+#section_18 {
+    top: 55%;
+    left: 70%;
+}
+
+#section_19 {
+    top: 55%;
+    left: 90%;
+}
+
+#section_20 {
+    top: 70%;
+    left: 50%;
+}
+
+/* Default Grid Layout for Doors */
+#door_0 {
+    top: 15%;
+    left: 15%;
+}
+
+#door_1 {
+    top: 15%;
+    left: 35%;
+}
+
+#door_2 {
+    top: 15%;
+    left: 55%;
+}
+
+#door_3 {
+    top: 15%;
+    left: 75%;
+}
+
+#door_4 {
+    top: 30%;
+    left: 15%;
+}
+
+#door_5 {
+    top: 30%;
+    left: 35%;
+}
+
+#door_6 {
+    top: 30%;
+    left: 55%;
+}
+
+#door_7 {
+    top: 30%;
+    left: 75%;
+}
+
+#door_8 {
+    top: 45%;
+    left: 15%;
+}
+
+#door_9 {
+    top: 45%;
+    left: 35%;
+}
+
+#door_10 {
+    top: 45%;
+    left: 55%;
+}
+
+#door_11 {
+    top: 45%;
+    left: 75%;
+}
+
+#door_12 {
+    top: 60%;
+    left: 15%;
+}
+
+#door_13 {
+    top: 60%;
+    left: 35%;
+}
+
+#door_14 {
+    top: 60%;
+    left: 55%;
+}
+
+#door_15 {
+    top: 60%;
+    left: 75%;
+}
+
+#door_16 {
+    top: 75%;
+    left: 35%;
+}
+
+
+.cooldown-warning {
+    position: absolute;
+    bottom: 5px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: red;
+    background: rgba(0, 0, 0, 0.8);
+    font-weight: bold;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0.5;
+    }
+}
+
 @media (max-width: 768px) {
     .map-header {
         font-size: 12px;
     }
+
     .player-marker {
         font-size: 18px;
     }
