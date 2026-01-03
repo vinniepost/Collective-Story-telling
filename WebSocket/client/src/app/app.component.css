@@ -11,6 +11,28 @@
     box-sizing: border-box;
 }
 
+/* Breakdown flashing effect when Code Red is active */
+.container.breakdown {
+    border-color: #550000;
+    animation: breakdown-flash 0.8s infinite;
+    box-shadow: 0 0 12px rgba(255, 0, 0, 0.35);
+}
+
+@keyframes breakdown-flash {
+    0% {
+        border-color: #330000;
+        box-shadow: 0 0 0 rgba(255, 0, 0, 0.0);
+    }
+    50% {
+        border-color: #ff0000;
+        box-shadow: 0 0 22px rgba(255, 0, 0, 0.6);
+    }
+    100% {
+        border-color: #330000;
+        box-shadow: 0 0 0 rgba(255, 0, 0, 0.0);
+    }
+}
+
 header {
     grid-column: 1 / -1;
     display: flex;

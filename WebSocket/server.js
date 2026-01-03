@@ -52,6 +52,17 @@ app.post('/api/repair-completed', (req, res) => {
 
     broadcastMapState();
     broadcastMessageState();
+
+    // If all pipes repaired → trigger purge + red alert
+    try {
+        const lower = (msg || '').toLowerCase();
+        if (lower.includes('all pipes repaired')) {
+            broadcast({ type: 'notification', message: 'PURGE THE PLAYER' });
+            // Start breakdown effect on web (uses existing code_red overlay)
+            broadcast({ type: 'code_red', duration: 30 });
+        }
+    } catch {}
+
     res.json({ ok: true, sectionId: sectionId || null });
 });
 
