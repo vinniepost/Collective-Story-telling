@@ -38,6 +38,9 @@ public class CustomLever : MonoBehaviour
     [SerializeField] private float resetDelay = 3.0f;
     [SerializeField] private float resetDuration = 0.5f;
 
+    [Header("Transition Audio")]
+    [SerializeField] private AudioClip transitionAudio; // The story clip to play
+
     private Quaternion initialRotation;
     private bool isResetting = false;
 
@@ -123,11 +126,24 @@ public class CustomLever : MonoBehaviour
 
     private void ChangeScene(string sceneName)
     {
-        if (sceneName == null)
+        if (string.IsNullOrEmpty(sceneName))
         {
-            Debug.Log($"No scene with name {sceneName} found, renaming it to main.");
             sceneName = "main";
         }
-        SceneManager.LoadScene(sceneName);
+
+        // Check if our TransitionManager exists
+        if (TransitionManager.Instance != null)
+        {
+            // Call the smooth transition instead of instant load
+            TransitionManager.Instance.TeleportToMainMap(sceneName, transitionAudio);
+        }
+        else
+        {
+            // Fallback if Manager is missing
+            Debug.LogWarning("TransitionManager not found! Loading scene instantly.");
+            SceneManager.LoadScene(sceneName);
+        }
     }
+
+    
 }
