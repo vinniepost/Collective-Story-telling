@@ -7,6 +7,53 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'client/dist/client/browser')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Simple debug endpoint to view current server state without the Angular client
+app.get('/api/state', (req, res) => {
+    res.json({
+        message_state: {
+            vrMessage,
+            options: messageOptions,
+            votes: messageVotes
+        },
+        map_update: {
+            sections: Object.values(sections),
+            doors: Object.values(doors),
+            votes: mapVotes,
+            totalClients: getClientCount(),
+            doorCooldown: Math.max(0, doorCooldownEnds - Date.now())
+        }
+    });
+});
+
+// API endpoint to start a repair task (testing without Unity)
+app.post('/api/start-repair', (req, res) => {
+    const { sectionId, text } = req.body || {};
+    const assigned = startRepairTask(sectionId, text);
+    res.json({ ok: true, ...assigned });
+});
+
+// API endpoint to mark repair completed (clears message and lights)
+app.post('/api/repair-completed', (req, res) => {
+    const { sectionId, text } = req.body || {};
+    // Set completion message for users
+    const msg = text && typeof text === 'string' ? text : 'REPAIR COMPLETED';
+    vrMessage = msg;
+    broadcast({ type: "notification", message: msg });
+
+    // Turn off specific section if provided; otherwise clear all
+    if (sectionId && sections[sectionId]) {
+        sections[sectionId].lightsOn = false;
+    } else {
+        Object.values(sections).forEach(s => { s.lightsOn = false; });
+    }
+
+    broadcastMapState();
+    broadcastMessageState();
+    res.json({ ok: true, sectionId: sectionId || null });
+});
 
 // Catch-all for Angular routing
 app.get('*', (req, res) => {
@@ -129,6 +176,46 @@ function resetMessageVoting() {
     messageOptions.forEach(opt => messageVotes[opt] = 0);
     clientMessageVotes.clear();
     broadcastMessageState();
+}
+
+// --- REPAIR TASK SYSTEM ---
+const REPAIR_TASKS = [
+    "Repair the water pump",
+    "Fix broken wiring",
+    "Replace the air filter",
+    "Seal the leaking pipe",
+    "Calibrate the control panel",
+    "Restart the generator",
+    "Secure loose vent cover",
+];
+
+function pickRandomSectionId() {
+    const idx = Math.floor(Math.random() * SECTIONS_COUNT);
+    return `section_${idx}`;
+}
+
+function startRepairTask(sectionId, text) {
+    const targetSection = (sectionId && sections[sectionId]) ? sectionId : pickRandomSectionId();
+    const taskText = (text && typeof text === 'string') ? text : REPAIR_TASKS[Math.floor(Math.random() * REPAIR_TASKS.length)];
+
+    // Turn off all lights, then highlight target section
+    Object.values(sections).forEach(s => { s.lightsOn = false; });
+    sections[targetSection].lightsOn = true;
+
+    // Set the VR message for the web app's Communication panel (friendly Section N)
+    let readableSection = targetSection;
+    if (typeof targetSection === 'string' && targetSection.startsWith('section_')) {
+        const num = targetSection.substring('section_'.length);
+        readableSection = `Section ${num}`;
+    }
+    vrMessage = `Technician: ${taskText} in ${readableSection}`;
+
+    // Broadcast to clients
+    broadcast({ type: "notification", message: `REPAIR TASK ISSUED → ${taskText} (${targetSection})` });
+    broadcast({ type: "vr_task", text: taskText, sectionId: targetSection }); // Unity can listen for this
+    broadcastMapState();
+    broadcastMessageState();
+    return { sectionId: targetSection, text: taskText };
 }
 
 // --- THRESHOLD CHECKS ---
@@ -412,6 +499,17 @@ wss.on('connection', ws => {
                 } else if (data.event_id === 'CodeRedFail') {
                     broadcast({ type: "code_red_result", result: "failed" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT TERMINATED ⚠️" });
+                } else if (data.event_id === 'PlayerSpawned') {
+                    // Unity can include optional sectionId/text
+                    startRepairTask(data.sectionId, data.text);
+                    broadcast({ type: "notification", message: "PLAYER SPAWNED → Repair task assigned." });
+                } else if (data.event_id === 'RepairCompleted') {
+                    // Clear the repair task
+                    vrMessage = "";
+                    Object.values(sections).forEach(s => { s.lightsOn = false; });
+                    broadcast({ type: "notification", message: "REPAIR COMPLETED" });
+                    broadcastMapState();
+                    broadcastMessageState();
                 }
                 return;
             }
