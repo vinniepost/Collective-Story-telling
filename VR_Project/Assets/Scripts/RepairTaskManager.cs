@@ -72,6 +72,11 @@ public class RepairTaskManager : MonoBehaviour
     {
         if (targets[_currentIndex] != target) return; // Only current target progresses
         Debug.Log($"[RepairTaskManager] Target repaired index={_currentIndex}, task='{target.taskText}'");
+        // Notify server for this specific repaired section
+        if (notifyServer && !string.IsNullOrEmpty(target.sectionId))
+        {
+            StartCoroutine(NotifyPipeRepaired(target.sectionId));
+        }
         _currentIndex++;
         if (_currentIndex >= targets.Count)
         {
@@ -138,6 +143,27 @@ public class RepairTaskManager : MonoBehaviour
             else
             {
                 Debug.Log("[RepairTaskManager] NotifyRepairCompleted OK");
+            }
+        }
+    }
+
+    private IEnumerator NotifyPipeRepaired(string sectionId)
+    {
+        var url = serverBaseUrl.TrimEnd('/') + "/api/repair-completed";
+        WWWForm form = new WWWForm();
+        form.AddField("text", "REPAIR COMPLETED");
+        form.AddField("sectionId", sectionId);
+        using (UnityWebRequest req = UnityWebRequest.Post(url, form))
+        {
+            Debug.Log($"[RepairTaskManager] POST {url} sectionId='{sectionId}'");
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning("[RepairTaskManager] NotifyPipeRepaired failed: " + req.error);
+            }
+            else
+            {
+                Debug.Log("[RepairTaskManager] NotifyPipeRepaired OK");
             }
         }
     }

@@ -48,6 +48,58 @@
     z-index: 5;
 }
 
+.pipe-marker {
+    font-size: 18px;
+    text-shadow: 0 0 4px #000;
+}
+
+/* Offset pipe markers relative to their section positions */
+/* Pipe buttons styling (indicators only) */
+.pipe-btn {
+    transform: translate(-50%, -50%);
+    z-index: 7;
+}
+
+.pipe-icon {
+    font-size: 18px;
+    line-height: 1;
+    color: #00FF00;
+    text-shadow: 0 0 4px #000;
+}
+
+.pipe-badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    font-size: 14px;
+    text-shadow: 0 0 4px #000;
+}
+
+/* Pipe positions using CSS IDs, same approach as doors */
+#pipe_section_0 { top: 10%; left: 10%; }
+
+#pipe_section_1 { top: 23%; left: 56.7%; }
+#pipe_section_2 { top: 47%; left: 12%; }
+#pipe_section_3 { top: 85%; left: 34%; }
+
+#pipe_section_4 { top: 10%; left: 90%; }
+#pipe_section_5 { top: 25%; left: 10%; }
+#pipe_section_6 { top: 25%; left: 30%; }
+#pipe_section_7 { top: 25%; left: 50%; }
+#pipe_section_8 { top: 25%; left: 70%; }
+#pipe_section_9 { top: 25%; left: 90%; }
+#pipe_section_10 { top: 40%; left: 10%; }
+#pipe_section_11 { top: 40%; left: 30%; }
+#pipe_section_12 { top: 40%; left: 50%; }
+#pipe_section_13 { top: 40%; left: 70%; }
+#pipe_section_14 { top: 40%; left: 90%; }
+#pipe_section_15 { top: 55%; left: 10%; }
+#pipe_section_16 { top: 55%; left: 30%; }
+#pipe_section_17 { top: 55%; left: 50%; }
+#pipe_section_18 { top: 55%; left: 70%; }
+#pipe_section_19 { top: 55%; left: 90%; }
+#pipe_section_20 { top: 70%; left: 50%; }
+
 /* Default Grid Layout for Sections (User will move these) */
 /* Distribute 21 sections in a 5x5 grid roughly */
 #section_0 {

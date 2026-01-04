@@ -19,7 +19,8 @@
       [currentVotes]="votes()[sec.id] || 0" [totalClients]="totalClients()"
       [style.border-color]="sec.lightsOn ? 'yellow' : 'gray'"
       [style.background-color]="sec.lightsOn ? 'rgba(255, 255, 0, 0.3)' : 'rgba(0, 0, 0, 0.5)'"
-      [style.box-shadow]="sec.lightsOn ? '0 0 15px yellow' : 'none'" (actionTriggered)="voteForEntity(sec.id)">
+      [style.box-shadow]="sec.lightsOn ? '0 0 15px yellow' : 'none'"
+      (actionTriggered)="voteForEntity(sec.id)">
     </app-map-button>
     }
 
@@ -32,9 +33,19 @@
     </app-map-button>
     }
 
+    <!-- Pipe Markers (positioned by x/y in percent from server) -->
+    @for (pipe of pipes(); track pipe.id) {
+    <div class="map-entity pipe-btn" [id]="'pipe_' + pipe.sectionId">
+      <span class="pipe-icon">🔧</span>
+      <span class="pipe-badge">{{ pipe.repaired ? '✅' : '❌' }}</span>
+    </div>
+    }
+
   </div>
 
   @if (doorCooldown() > 0) {
   <div class="cooldown-warning">DOOR SYSTEM COOLING DOWN...</div>
   }
+
+  
 </div>

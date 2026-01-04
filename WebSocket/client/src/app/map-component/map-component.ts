@@ -17,13 +17,22 @@ export class MapComponent {
   votes = input<{ [key: string]: number }>({});
   sections = input<import('../websocket.service').MapSection[]>([]);
   doors = input<import('../websocket.service').MapDoor[]>([]);
+  pipes = input<import('../websocket.service').MapPipe[]>([]);
   doorCooldown = input(0);
   totalClients = input(0);
   playerLocation = input<PlayerLocation | null>(null);
+
 
   // We handle map votes directly to allow multi-voting (toggling)
   voteForEntity(entityId: string) {
     if (!this.ws.isConnected()) return;
     this.ws.sendMessage({ type: 'vote_map', entityId: entityId });
   }
+
+  // Helper: return pipe for a section if any
+  pipeForSection(sectionId: string) {
+    return this.ws.pipes().find(p => p.sectionId === sectionId);
+  }
+
+  // No placement mode; pipes are positioned via CSS IDs like doors.
 }

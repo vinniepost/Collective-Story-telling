@@ -22,6 +22,12 @@ export interface MapDoor {
   lastClosedTime: number;
 }
 
+export interface MapPipe {
+  id: string;
+  sectionId: string;
+  repaired: boolean;
+}
+
 export interface GameState {
   type: string;
   sections?: MapSection[];
@@ -58,6 +64,7 @@ export class WebSocketService {
   // Map Signals
   public sections = signal<MapSection[]>([]);
   public doors = signal<MapDoor[]>([]);
+  public pipes = signal<MapPipe[]>([]);
   public mapVotes = signal<{ [key: string]: number }>({});
   public doorCooldown = signal<number>(0);
 
@@ -137,6 +144,7 @@ export class WebSocketService {
       case 'map_update':
         if (data.sections) this.sections.set(data.sections);
         if (data.doors) this.doors.set(data.doors);
+        if ((data as any).pipes) this.pipes.set((data as any).pipes as MapPipe[]);
         if (data.votes) this.mapVotes.set(data.votes);
         if (data.doorCooldown !== undefined) this.doorCooldown.set(data.doorCooldown);
         if (data.totalClients !== undefined) this.totalClients.set(data.totalClients);

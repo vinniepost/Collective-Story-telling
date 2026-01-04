@@ -21,6 +21,7 @@ app.get('/api/state', (req, res) => {
         map_update: {
             sections: Object.values(sections),
             doors: Object.values(doors),
+            pipes: Object.values(pipes),
             votes: mapVotes,
             totalClients: getClientCount(),
             doorCooldown: Math.max(0, doorCooldownEnds - Date.now())
@@ -44,37 +45,46 @@ app.post('/api/start-repair', (req, res) => {
     res.json({ ok: true, ...assigned });
 });
 
-// API endpoint to mark repair completed (clears message and lights)
+// API endpoint to mark a single pipe repaired (incremental, no light changes)
 app.post('/api/repair-completed', (req, res) => {
-    const { sectionId, text } = req.body || {};
-    // Set completion message for users
+    const { sectionId, pipeId, text } = req.body || {};
     const msg = text && typeof text === 'string' ? text : 'REPAIR COMPLETED';
     vrMessage = msg;
-    broadcast({ type: "notification", message: msg });
+    broadcast({ type: 'notification', message: msg });
 
-    // Turn off specific section if provided; otherwise clear all
-    if (sectionId && sections[sectionId]) {
-        sections[sectionId].lightsOn = false;
+    let targetPid = null;
+    if (pipeId && isRepairPipeId(pipeId)) {
+        targetPid = pipeId;
+    } else if (sectionId && INITIAL_PIPE_SECTIONS.includes(sectionId)) {
+        targetPid = pipesBySection[sectionId] || `pipe_${sectionId}`;
     } else {
-        Object.values(sections).forEach(s => { s.lightsOn = false; });
+        targetPid = getNextUnrepairedPipeId();
+    }
+
+    if (targetPid) {
+        if (!pipes[targetPid]) {
+            const sec = targetPid.replace('pipe_', '');
+            pipes[targetPid] = { id: targetPid, sectionId: sec, repaired: true };
+        } else {
+            pipes[targetPid].repaired = true;
+        }
     }
 
     broadcastMapState();
     broadcastMessageState();
 
-    // If all pipes repaired → trigger purge + red alert
     try {
         const lower = (msg || '').toLowerCase();
         if (lower.includes('all pipes repaired')) {
             broadcast({ type: 'notification', message: 'PURGE THE PLAYER' });
-            // Start breakdown effect on web (uses existing code_red overlay)
-            // Silent bonus notice so web users only see the 40s vs 30s timer.
             startCodeRed(30, { silentBonusNotice: true });
         }
     } catch {}
 
     res.json({ ok: true, sectionId: sectionId || null });
 });
+
+// (Removed pipe position API; pipes are positioned via CSS like doors.)
 
 // API to collect a clue (increments up to CLUES_REQUIRED). Applies +10s if Code Red active
 app.post('/api/clue-collect', (req, res) => {
@@ -183,8 +193,66 @@ const MAX_DOORS_CLOSED = 2;
 const DOOR_COOLDOWN_MS = 6000;
 
 let sections = {}; // { "section_0": { id: "section_0", lightsOn: false }, ... }
-let doors = {};    // { "door_0": { id: "door_0", isClosed: false, lastClosedTime: 0 }, ... }
+let doors = {};    // { "door_0": { id: "door_0", isClosed: false, isLocked: false, lastClosedTime: 0 }, ... }
+let pipes = {};    // { "pipe_section_1": { id: "pipe_section_1", sectionId: "section_1", repaired: false }, ... }
+let pipesBySection = {}; // sectionId -> pipeId
 let doorCooldownEnds = 0;
+let activeRepairSectionId = null; // Track currently assigned repair section
+
+// Helper: list the three repair pipe IDs
+function getRepairPipeIds() {
+    return INITIAL_PIPE_SECTIONS.map(sec => `pipe_${sec}`);
+}
+function getNextUnrepairedPipeId() {
+    const ids = getRepairPipeIds();
+    for (const id of ids) {
+        if (pipes[id] && !pipes[id].repaired) return id;
+    }
+    return null;
+}
+
+function isRepairPipeId(pid) {
+    return getRepairPipeIds().includes(pid);
+}
+
+// Normalize section identifiers coming from Unity (number or string variants)
+function normalizeSectionId(input) {
+    if (input === undefined || input === null) return null;
+    if (typeof input === 'number') return `section_${input}`;
+    if (typeof input === 'string') {
+        const lower = input.trim().toLowerCase();
+        // Matches: 'section_1', 'section 1', 'section-1', '1'
+        const m = lower.match(/^(?:section[ _-]?)(\d+)$/) || lower.match(/^(\d+)$/);
+        if (m) return `section_${m[1]}`;
+        // Already canonical?
+        if (lower.startsWith('section_')) return lower;
+    }
+    return null;
+}
+
+// Resolve a target pipe ID from a Unity event payload
+function resolvePipeIdFromEvent(data) {
+    // Prefer explicit pipeId fields
+    const rawPipeId = data.pipeId || data.pipe_id || data.pipe;
+    if (typeof rawPipeId === 'string' && isRepairPipeId(rawPipeId)) {
+        return rawPipeId;
+    }
+
+    // Try various section fields
+    const rawSection = data.sectionId ?? data.section_id ?? data.section ?? data.sectionIndex ?? data.section_index;
+    const normalizedSection = normalizeSectionId(rawSection);
+    if (normalizedSection && INITIAL_PIPE_SECTIONS.includes(normalizedSection)) {
+        return pipesBySection[normalizedSection] || `pipe_${normalizedSection}`;
+    }
+
+    // Fall back to assigned repair section if available
+    if (activeRepairSectionId && INITIAL_PIPE_SECTIONS.includes(activeRepairSectionId)) {
+        return pipesBySection[activeRepairSectionId] || `pipe_${activeRepairSectionId}`;
+    }
+
+    // Finally, the next unrepaired pipe
+    return getNextUnrepairedPipeId();
+}
 
 // Initialize State
 for (let i = 0; i < SECTIONS_COUNT; i++) {
@@ -196,6 +264,14 @@ for (let i = 0; i < DOORS_COUNT; i++) {
     doors[id] = { id: id, isClosed: false, isLocked: false, lastClosedTime: 0 };
 }
 
+// Initialize Pipes only for three sections to show exactly three repair targets on the map
+const INITIAL_PIPE_SECTIONS = ['section_1', 'section_2', 'section_3'];
+INITIAL_PIPE_SECTIONS.forEach(sectionId => {
+    const pipeId = `pipe_${sectionId}`;
+    pipes[pipeId] = { id: pipeId, sectionId: sectionId, repaired: false };
+    pipesBySection[sectionId] = pipeId;
+});
+
 // Voting Buckets
 let mapVotes = {};
 let clientMapVotes = new Map(); // ClientID -> Set<EntityID>
@@ -204,11 +280,13 @@ function broadcastMapState() {
     // Prepare lists for Unity/Client
     const sectionsList = Object.values(sections);
     const doorsList = Object.values(doors);
+    const pipesList = Object.values(pipes);
 
     broadcast({
         type: "map_update",
         sections: sectionsList,
         doors: doorsList,
+        pipes: pipesList,
         votes: mapVotes,
         totalClients: getClientCount(),
         doorCooldown: Math.max(0, doorCooldownEnds - Date.now())
@@ -292,9 +370,12 @@ function startRepairTask(sectionId, text) {
     const targetSection = (sectionId && sections[sectionId]) ? sectionId : pickRandomSectionId();
     const taskText = (text && typeof text === 'string') ? text : REPAIR_TASKS[Math.floor(Math.random() * REPAIR_TASKS.length)];
 
-    // Turn off all lights, then highlight target section
-    Object.values(sections).forEach(s => { s.lightsOn = false; });
-    sections[targetSection].lightsOn = true;
+    // Do not toggle section lights for pipe repair flow
+
+    // Track the active repair target
+    activeRepairSectionId = targetSection;
+
+    // Ensure pipe entries exist (they are initialized at startup)
 
     // Set the VR message for the web app's Communication panel (friendly Section N)
     let readableSection = targetSection;
@@ -521,6 +602,7 @@ wss.on('connection', ws => {
         type: "map_update",
         sections: Object.values(sections),
         doors: Object.values(doors),
+        pipes: Object.values(pipes),
         votes: mapVotes,
         totalClients: getClientCount(),
         doorCooldown: Math.max(0, doorCooldownEnds - Date.now())
@@ -604,13 +686,29 @@ wss.on('connection', ws => {
                     broadcast({ type: "code_red_result", result: "failed" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT TERMINATED ⚠️" });
                 } else if (data.event_id === 'PlayerSpawned') {
-                    // Unity can include optional sectionId/text
-                    startRepairTask(data.sectionId, data.text);
+                    // Unity can include optional sectionId/text; normalize if provided
+                    const norm = normalizeSectionId(data.sectionId ?? data.section);
+                    startRepairTask(norm || data.sectionId, data.text);
                     broadcast({ type: "notification", message: "PLAYER SPAWNED → Repair task assigned." });
                 } else if (data.event_id === 'RepairCompleted') {
-                    // Clear the repair task
+                    // Clear the repair task and mark one pipe as repaired (incremental)
                     vrMessage = "";
-                    Object.values(sections).forEach(s => { s.lightsOn = false; });
+                    const targetPid = resolvePipeIdFromEvent(data);
+                    console.log('RepairCompleted payload:', {
+                        sectionId: data.sectionId ?? data.section,
+                        pipeId: data.pipeId ?? data.pipe,
+                        resolved: targetPid,
+                        activeRepairSectionId
+                    });
+                    if (targetPid) {
+                        if (!pipes[targetPid]) {
+                            const sec = targetPid.replace('pipe_', '');
+                            pipes[targetPid] = { id: targetPid, sectionId: sec, repaired: true };
+                        } else {
+                            pipes[targetPid].repaired = true;
+                        }
+                    }
+
                     broadcast({ type: "notification", message: "REPAIR COMPLETED" });
                     broadcastMapState();
                     broadcastMessageState();

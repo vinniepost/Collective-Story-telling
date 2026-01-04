@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-map-button',
   standalone: true,
+  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button class="map-marker" 
@@ -12,6 +14,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
             [attr.aria-label]="action()">
       <span class="icon">{{ icon() }}</span>
       <span class="vote-count">{{ currentVotes() }}/{{ requiredVotes() }}</span>
+      <span *ngIf="badge()" class="badge">{{ badge() }}</span>
     </button>
   `,
   styles: `
@@ -26,6 +29,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
       appearance: none;
       border: none;
       outline: none;
+      position: relative;
       
       width: 50px;
       height: 50px;
@@ -67,6 +71,14 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
       font-size: 10px;
       font-weight: bold;
     }
+
+    .badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      font-size: 16px;
+      text-shadow: 0 0 4px #000;
+    }
   `
 })
 export class MapButton {
@@ -75,6 +87,7 @@ export class MapButton {
   currentVotes = input(0);
   totalClients = input(0);
   disabled = input(false);
+  badge = input<string | null>(null);
   
   actionTriggered = output<string>();
 

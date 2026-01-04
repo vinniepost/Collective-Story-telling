@@ -6,9 +6,8 @@ public class RepairTarget : MonoBehaviour
     [Tooltip("Map section ID to highlight on the web (e.g., section_1)")]
     public string sectionId = "section_1";
     public Color highlightColor = Color.yellow;
-    public float interactDistance = 2.0f;
-    public Transform player; // Assign your VR player/camera rig
     public RepairTaskManager manager;
+    public PipeIndicator indicator;
 
     private bool _isRepaired = false;
     private Renderer _renderer;
@@ -27,6 +26,10 @@ public class RepairTarget : MonoBehaviour
         else
         {
             Debug.Log($"[RepairTarget:{name}] No emission on material.");
+        }
+        if (indicator != null)
+        {
+            indicator.SetRepaired(false);
         }
     }
 
@@ -55,18 +58,12 @@ public class RepairTarget : MonoBehaviour
     private void TryRepair()
     {
         if (_isRepaired) return;
-        if (player != null)
-        {
-            float d = Vector3.Distance(player.position, transform.position);
-            if (d > interactDistance)
-            {
-                Debug.Log($"[RepairTarget:{name}] Too far (d={d:F2} > {interactDistance})");
-                return;
-            }
-            Debug.Log($"[RepairTarget:{name}] Distance OK (d={d:F2} <= {interactDistance})");
-        }
 
         _isRepaired = true;
+        if (indicator != null)
+        {
+            indicator.SetRepaired(true);
+        }
         SetHighlight(false);
         if (manager != null)
         {
