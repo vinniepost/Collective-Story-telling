@@ -13,7 +13,7 @@ public class WebSocketController : MonoBehaviour
     public static WebSocketController Instance;
 
     [Header("Connection")]
-    public string serverUrl = "ws://139.59.215.136/ws/";
+    public string serverUrl = "ws://139.59.215.136/ws";
 
     [Header("Server Actions")]
     public UnityEvent OnDoorOpen;

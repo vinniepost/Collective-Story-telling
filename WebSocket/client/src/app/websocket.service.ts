@@ -96,18 +96,15 @@ export class WebSocketService {
     const isDev = window.location.port === '4200';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
-    let url = '';
-
+    // CHANGE IS HERE:
+    // Both Dev and Prod now need the "/ws" path because we added { path: '/ws' } to server.js
     if (isDev) {
-      // Development: Connect directly to port 3000
-      url = `${protocol}//${window.location.hostname}:3000`;
+      // Development: localhost:3000/ws
+      this.socket = new WebSocket(`${protocol}//${window.location.hostname}:3000/ws`);
     } else {
-      // Production: Connect to Nginx port 80/443 via the /ws/ path
-      // Nginx will strip '/ws/' and forward to port 3000 internally
-      url = `${protocol}//${window.location.host}/ws/`;
+      // Production: 139.59.215.136/ws
+      this.socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
     }
-
-    this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
       console.log('Connected to WebSocket');

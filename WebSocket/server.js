@@ -121,7 +121,8 @@ server.listen(PORT, () => {
     console.log(`HTTP server running on http://localhost:${PORT}`);
 });
 
-const wss = new WebSocket.Server({ server });
+// Explicitly listen on the /ws path
+const wss = new WebSocket.Server({ server, path: '/ws' });
 
 // --- HELPER FUNCTIONS (Must be defined before use) ---
 function getClientCount() {
