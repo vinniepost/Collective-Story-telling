@@ -76,135 +76,216 @@
 }
 
 /* Pipe positions using CSS IDs, same approach as doors */
-#pipe_section_0 { top: 10%; left: 10%; }
+#pipe_section_0 {
+    top: 10%;
+    left: 10%;
+}
 
-#pipe_section_1 { top: 23%; left: 56.7%; }
-#pipe_section_2 { top: 47%; left: 12%; }
-#pipe_section_3 { top: 85%; left: 34%; }
+#pipe_section_1 {
+    top: 23%;
+    left: 56.7%;
+}
 
-#pipe_section_4 { top: 10%; left: 90%; }
-#pipe_section_5 { top: 25%; left: 10%; }
-#pipe_section_6 { top: 25%; left: 30%; }
-#pipe_section_7 { top: 25%; left: 50%; }
-#pipe_section_8 { top: 25%; left: 70%; }
-#pipe_section_9 { top: 25%; left: 90%; }
-#pipe_section_10 { top: 40%; left: 10%; }
-#pipe_section_11 { top: 40%; left: 30%; }
-#pipe_section_12 { top: 40%; left: 50%; }
-#pipe_section_13 { top: 40%; left: 70%; }
-#pipe_section_14 { top: 40%; left: 90%; }
-#pipe_section_15 { top: 55%; left: 10%; }
-#pipe_section_16 { top: 55%; left: 30%; }
-#pipe_section_17 { top: 55%; left: 50%; }
-#pipe_section_18 { top: 55%; left: 70%; }
-#pipe_section_19 { top: 55%; left: 90%; }
-#pipe_section_20 { top: 70%; left: 50%; }
+#pipe_section_2 {
+    top: 47%;
+    left: 12%;
+}
+
+#pipe_section_3 {
+    top: 85%;
+    left: 34%;
+}
+
+#pipe_section_4 {
+    top: 10%;
+    left: 90%;
+}
+
+#pipe_section_5 {
+    top: 25%;
+    left: 10%;
+}
+
+#pipe_section_6 {
+    top: 25%;
+    left: 30%;
+}
+
+#pipe_section_7 {
+    top: 25%;
+    left: 50%;
+}
+
+#pipe_section_8 {
+    top: 25%;
+    left: 70%;
+}
+
+#pipe_section_9 {
+    top: 25%;
+    left: 90%;
+}
+
+#pipe_section_10 {
+    top: 40%;
+    left: 10%;
+}
+
+#pipe_section_11 {
+    top: 40%;
+    left: 30%;
+}
+
+#pipe_section_12 {
+    top: 40%;
+    left: 50%;
+}
+
+#pipe_section_13 {
+    top: 40%;
+    left: 70%;
+}
+
+#pipe_section_14 {
+    top: 40%;
+    left: 90%;
+}
+
+#pipe_section_15 {
+    top: 55%;
+    left: 10%;
+}
+
+#pipe_section_16 {
+    top: 55%;
+    left: 30%;
+}
+
+#pipe_section_17 {
+    top: 55%;
+    left: 50%;
+}
+
+#pipe_section_18 {
+    top: 55%;
+    left: 70%;
+}
+
+#pipe_section_19 {
+    top: 55%;
+    left: 90%;
+}
+
+#pipe_section_20 {
+    top: 70%;
+    left: 50%;
+}
 
 /* Default Grid Layout for Sections (User will move these) */
 /* Distribute 21 sections in a 5x5 grid roughly */
 #section_0 {
-    top: 10%;
+    top: 25%;
     left: 10%;
 }
 
 #section_1 {
-    top: 10%;
-    left: 30%;
+    top: 23%;
+    left: 25%;
 }
 
 #section_2 {
-    top: 10%;
-    left: 50%;
+    top: 30%;
+    left: 42%;
 }
 
 #section_3 {
-    top: 10%;
-    left: 70%;
+    top: 20%;
+    left: 59%;
 }
 
 #section_4 {
-    top: 10%;
-    left: 90%;
+    top: 25%;
+    left: 70%;
 }
 
 #section_5 {
-    top: 25%;
-    left: 10%;
+    top: 34%;
+    left: 17%;
 }
 
 #section_6 {
-    top: 25%;
-    left: 30%;
+    top: 42%;
+    left: 28%;
 }
 
 #section_7 {
-    top: 25%;
-    left: 50%;
+    top: 42%;
+    left: 72%;
 }
 
 #section_8 {
-    top: 25%;
-    left: 70%;
+    top: 53%;
+    left: 15%;
 }
 
 #section_9 {
-    top: 25%;
-    left: 90%;
+    top: 52%;
+    left: 27%;
 }
 
 #section_10 {
-    top: 40%;
-    left: 10%;
+    top: 52%;
+    left: 40%;
 }
 
 #section_11 {
-    top: 40%;
-    left: 30%;
+    top: 56%;
+    left: 53%;
 }
 
 #section_12 {
-    top: 40%;
-    left: 50%;
+    top: 56%;
+    left: 62%;
 }
 
 #section_13 {
-    top: 40%;
-    left: 70%;
+    top: 75%;
+    left: 16%;
 }
 
 #section_14 {
-    top: 40%;
-    left: 90%;
+    top: 60%;
+    left: 33%;
 }
 
 #section_15 {
-    top: 55%;
-    left: 10%;
+    top: 66%;
+    left: 41%;
 }
 
 #section_16 {
-    top: 55%;
-    left: 30%;
+    top: 67%;
+    left: 49%;
 }
 
 #section_17 {
-    top: 55%;
-    left: 50%;
+    top: 69%;
+    left: 32%;
 }
 
 #section_18 {
-    top: 55%;
-    left: 70%;
+    top: 79%;
+    left: 33.5%;
 }
 
 #section_19 {
-    top: 55%;
-    left: 90%;
+    top: 85%;
+    left: 48%;
 }
 
 #section_20 {
-    top: 70%;
-    left: 50%;
+    top: 78%;
+    left: 58%;
 }
 
 /* Default Grid Layout for Doors */
