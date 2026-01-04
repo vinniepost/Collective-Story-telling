@@ -24,6 +24,15 @@ app.get('/api/state', (req, res) => {
             votes: mapVotes,
             totalClients: getClientCount(),
             doorCooldown: Math.max(0, doorCooldownEnds - Date.now())
+        },
+        clues: {
+            collected: cluesCollected,
+            required: CLUES_REQUIRED
+        },
+        code_red: {
+            active: codeRedActive,
+            remainingSeconds: codeRedActive ? Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000)) : 0,
+            endsAt: codeRedEndTime
         }
     });
 });
@@ -59,11 +68,47 @@ app.post('/api/repair-completed', (req, res) => {
         if (lower.includes('all pipes repaired')) {
             broadcast({ type: 'notification', message: 'PURGE THE PLAYER' });
             // Start breakdown effect on web (uses existing code_red overlay)
-            broadcast({ type: 'code_red', duration: 30 });
+            // Silent bonus notice so web users only see the 40s vs 30s timer.
+            startCodeRed(30, { silentBonusNotice: true });
         }
     } catch {}
 
     res.json({ ok: true, sectionId: sectionId || null });
+});
+
+// API to collect a clue (increments up to CLUES_REQUIRED). Applies +10s if Code Red active
+app.post('/api/clue-collect', (req, res) => {
+    const { silent = false } = req.body || {};
+    const before = cluesCollected;
+    cluesCollected = Math.min(CLUES_REQUIRED, cluesCollected + 1);
+    if (!silent) {
+        broadcast({ type: 'notification', message: `Clue collected (${cluesCollected}/${CLUES_REQUIRED})` });
+    }
+
+    let bonusApplied = false; // never apply bonus while purge is active
+    let bonusQueued = false;
+    if (before < CLUES_REQUIRED && cluesCollected >= CLUES_REQUIRED) {
+        // Completed full set of clues
+        // Only apply the +10s at purge start; do not extend if already active
+        if (!silent) {
+            const note = codeRedActive
+                ? 'All clues collected! Bonus will apply at next purge start.'
+                : 'All clues collected! +10s will be applied when purge starts.';
+            broadcast({ type: 'notification', message: note });
+        }
+        if (!codeRedActive) {
+            bonusQueued = true;
+        }
+    }
+
+    res.json({ ok: true, clues: cluesCollected, bonusApplied, bonusQueued, codeRedActive, remainingSeconds: codeRedActive ? Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000)) : 0 });
+});
+
+// API to reset clue progress
+app.post('/api/clue-reset', (req, res) => {
+    cluesCollected = 0;
+    broadcast({ type: 'notification', message: 'Clue progress reset' });
+    res.json({ ok: true, clues: cluesCollected });
 });
 
 // Catch-all for Angular routing
@@ -90,6 +135,43 @@ function broadcast(obj) {
             client.send(msg);
         }
     });
+}
+
+// --- CODE RED / CLUE SYSTEM STATE & HELPERS ---
+const CLUES_REQUIRED = 4;
+let cluesCollected = 0;
+let codeRedActive = false;
+let codeRedEndTime = 0; // epoch ms
+
+function startCodeRed(baseDurationSeconds, opts = {}) {
+    const { silentBonusNotice = false } = opts;
+    let durationSeconds = baseDurationSeconds;
+    if (cluesCollected >= CLUES_REQUIRED) {
+        durationSeconds += 10; // bonus time if all clues found before start
+        if (!silentBonusNotice) {
+            broadcast({ type: 'notification', message: '+10s bonus applied (all clues collected)' });
+        }
+    }
+    codeRedActive = true;
+    const proposedEnd = Date.now() + durationSeconds * 1000;
+    // If already active, prefer the later end time
+    codeRedEndTime = Math.max(codeRedEndTime, proposedEnd);
+    const remaining = Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000));
+    broadcast({ type: 'code_red', duration: remaining });
+}
+
+function extendCodeRed(extraSeconds, opts = {}) {
+    const { silent = false } = opts;
+    if (!codeRedActive) return false;
+    codeRedEndTime += extraSeconds * 1000;
+    const remaining = Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000));
+    broadcast({ type: 'code_red_extend', extra: extraSeconds, remaining });
+    if (!silent) {
+        broadcast({ type: 'notification', message: `+${extraSeconds}s added to purge timer` });
+    }
+    // Also rebroadcast code_red with new remaining for clients that don't handle code_red_extend
+    broadcast({ type: 'code_red', duration: remaining });
+    return true;
 }
 
 // --- MAP SYSTEM STATE ---
@@ -451,6 +533,12 @@ wss.on('connection', ws => {
         votes: messageVotes
     }));
 
+    // Send current Code Red state if active
+    if (codeRedActive) {
+        const remaining = Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000));
+        ws.send(JSON.stringify({ type: 'code_red', duration: remaining }));
+    }
+
     // Send Player Location
     ws.send(JSON.stringify({ type: "player_location", playerLocation: playerLocation }));
 
@@ -502,12 +590,16 @@ wss.on('connection', ws => {
                     broadcast({ type: "notification", message: "Checkpoint Reached! Voting Cycle Reset." });
                     resetVotingCycle();
                 } else if (data.event_id === 'CodeRedStart') {
-                    broadcast({ type: "code_red", duration: 120 });
+                    startCodeRed(120);
                     broadcast({ type: "notification", message: "⚠️ CODE RED INITIATED ⚠️" });
                 } else if (data.event_id === 'CodeRedEscape') {
+                    codeRedActive = false;
+                    codeRedEndTime = 0;
                     broadcast({ type: "code_red_result", result: "escaped" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT ESCAPED ⚠️" });
                 } else if (data.event_id === 'CodeRedFail') {
+                    codeRedActive = false;
+                    codeRedEndTime = 0;
                     broadcast({ type: "code_red_result", result: "failed" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT TERMINATED ⚠️" });
                 } else if (data.event_id === 'PlayerSpawned') {
