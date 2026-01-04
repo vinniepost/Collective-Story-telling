@@ -87,15 +87,25 @@ export class WebSocketService {
   }
 
   public connect(): void {
-    if (typeof window === 'undefined') return; // SSR check
+    if (typeof window === 'undefined') return;
 
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
+    const isDev = window.location.port === '4200';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.port === '4200' ? 'localhost:3000' : window.location.host;
-    const url = `${protocol}//${host}`;
+    
+    let url = '';
+
+    if (isDev) {
+      // Development: Connect directly to port 3000
+      url = `${protocol}//${window.location.hostname}:3000`;
+    } else {
+      // Production: Connect to Nginx port 80/443 via the /ws/ path
+      // Nginx will strip '/ws/' and forward to port 3000 internally
+      url = `${protocol}//${window.location.host}/ws/`;
+    }
 
     this.socket = new WebSocket(url);
 
