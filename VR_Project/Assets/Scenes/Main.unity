@@ -42472,6 +42472,10 @@ MonoBehaviour:
   - {fileID: 836828587}
   - {fileID: 1989157456}
   purgeLightColor: {r: 1, g: 0, b: 0, a: 1}
+  enableRedFlicker: 1
+  flickerSpeed: 6
+  flickerIntensityMin: -0.1
+  flickerIntensityMax: 1.2
   sirenAudioSource: {fileID: 0}
   sirenClip: {fileID: 0}
   voiceOverSource: {fileID: 462787174}
@@ -196265,7 +196269,6 @@ MonoBehaviour:
   popupTextTMP: {fileID: 1195837943}
   popupDurationSeconds: 5
   autoHidePopup: 0
-  serverBaseUrl: ws://139.59.215.136/ws
   notifyServer: 1
 --- !u!4 &1453906633
 Transform:
@@ -254316,7 +254319,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7118140679940301199, guid: 98876a192c2029b4c82b4e85c57625a5, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 4.747
+      value: 4.821
       objectReference: {fileID: 0}
     - target: {fileID: 7118140679940301199, guid: 98876a192c2029b4c82b4e85c57625a5, type: 3}
       propertyPath: m_LocalPosition.z

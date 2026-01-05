@@ -18,10 +18,16 @@ public class MapControlManager : MonoBehaviour
     public List<MapSection> sections; // Need 21 of these in Inspector
     public List<DoorController> doors; // Need 17 of these in Inspector (DoorController scripts)
 
+    // When true, all lights are forced ON and attempts to turn them OFF are ignored
+    private bool lightsLockedOn = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        // Default state: turn all lights OFF at startup
+        InitializeAllLightsOff();
     }
 
     public void SetSectionState(string id, bool isLightsOn)
@@ -33,8 +39,20 @@ public class MapControlManager : MonoBehaviour
             {
                 if (light != null) 
                 {
-                    Debug.Log($"[MapControlManager] Setting light {light.name} in section {section.id} to {(isLightsOn ? "ON" : "OFF")}");
-                    light.enabled = isLightsOn;
+                    if (lightsLockedOn)
+                    {
+                        // During purge, force lights ON regardless of incoming state
+                        if (!light.enabled)
+                        {
+                            Debug.Log($"[MapControlManager] Purge lock: forcing light {light.name} ON (section {section.id})");
+                        }
+                        light.enabled = true;
+                    }
+                    else
+                    {
+                        Debug.Log($"[MapControlManager] Setting light {light.name} in section {section.id} to {(isLightsOn ? "ON" : "OFF")}");
+                        light.enabled = isLightsOn;
+                    }
                 }
             }
         }
@@ -59,6 +77,34 @@ public class MapControlManager : MonoBehaviour
         if (door != null)
         {
             door.MakeUnlockable();
+        }
+    }
+
+    public void SetLightsLockedOn(bool locked)
+    {
+        lightsLockedOn = locked;
+        if (lightsLockedOn)
+        {
+            // Immediately turn all lights ON
+            TurnAllLights(true);
+        }
+    }
+
+    private void InitializeAllLightsOff()
+    {
+        TurnAllLights(false);
+    }
+
+    private void TurnAllLights(bool on)
+    {
+        foreach (var section in sections)
+        {
+            if (section == null || section.lights == null) continue;
+            foreach (var light in section.lights)
+            {
+                if (light == null) continue;
+                light.enabled = on;
+            }
         }
     }
 }

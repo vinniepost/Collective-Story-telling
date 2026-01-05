@@ -289,6 +289,26 @@ public class WebSocketController : MonoBehaviour
         }
     }
 
+    // Start a repair task via WebSocket (uses server's PlayerSpawned handler)
+    public async void SendStartRepairTask(string text, string sectionId)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new GameEventData { type = "game_event", event_id = "PlayerSpawned", text = text, sectionId = sectionId };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    // Notify server of a repair completion (incremental or final)
+    public async void SendRepairCompleted(string sectionId, string pipeId, string text)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new GameEventData { type = "game_event", event_id = "RepairCompleted", sectionId = sectionId, pipeId = pipeId, text = text };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
     public async void SendVRMessage(string message)
     {
         if (websocket != null && websocket.State == WebSocketState.Open)
@@ -406,6 +426,9 @@ public class GameEventData
     public string type;
     public string event_id;
     public int duration;
+    public string text;
+    public string sectionId;
+    public string pipeId;
 }
 
 [System.Serializable]

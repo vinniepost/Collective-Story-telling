@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Networking;
 using TMPro;
 
 public class RepairTaskManager : MonoBehaviour
@@ -15,9 +14,8 @@ public class RepairTaskManager : MonoBehaviour
     public float popupDurationSeconds = 5f;
     public bool autoHidePopup = false; // If true, hide after duration; else keep until next update
 
-    [Header("Server Settings")]
-    public string serverBaseUrl = "http://localhost:3000";
-    public bool notifyServer = true; // Call HTTP endpoints for map/message sync
+    [Header("Server Settings (WebSocket)")]
+    public bool notifyServer = true; // Send WebSocket events for map/message sync
 
     private int _currentIndex = 0;
     private float _hideAt = 0f;
@@ -38,7 +36,7 @@ public class RepairTaskManager : MonoBehaviour
             }
         }
         FocusCurrentTarget();
-        if (notifyServer) StartCoroutine(StartServerTask(targets[_currentIndex].taskText, targets[_currentIndex].sectionId));
+        if (notifyServer && WebSocketController.Instance != null) WebSocketController.Instance.SendStartRepairTask(targets[_currentIndex].taskText, targets[_currentIndex].sectionId);
     }
 
     void Update()
@@ -74,20 +72,23 @@ public class RepairTaskManager : MonoBehaviour
         if (targets[_currentIndex] != target) return; // Only current target progresses
         Debug.Log($"[RepairTaskManager] Target repaired index={_currentIndex}, task='{target.taskText}'");
         // Notify server for this specific repaired section
-        if (notifyServer && !string.IsNullOrEmpty(target.sectionId))
+        if (notifyServer && !string.IsNullOrEmpty(target.sectionId) && WebSocketController.Instance != null)
         {
-            StartCoroutine(NotifyPipeRepaired(target.sectionId));
+            WebSocketController.Instance.SendRepairCompleted(target.sectionId, null, "REPAIR COMPLETED");
         }
         _currentIndex++;
         if (_currentIndex >= targets.Count)
         {
             ShowPopup("ESCAPE TO THE START");
-            if (notifyServer) StartCoroutine(NotifyRepairCompleted());
+            if (notifyServer && WebSocketController.Instance != null)
+            {
+                WebSocketController.Instance.SendRepairCompleted(null, null, "ESCAPE TO THE START");
+            }
             Debug.Log("[RepairTaskManager] All tasks completed. Notifying server.");
             return;
         }
         FocusCurrentTarget();
-        if (notifyServer) StartCoroutine(StartServerTask(targets[_currentIndex].taskText, targets[_currentIndex].sectionId));
+        if (notifyServer && WebSocketController.Instance != null) WebSocketController.Instance.SendStartRepairTask(targets[_currentIndex].taskText, targets[_currentIndex].sectionId);
     }
 
     private void ShowPopup(string text)
@@ -102,70 +103,5 @@ public class RepairTaskManager : MonoBehaviour
         Debug.Log($"[RepairTaskManager] Popup: {text}");
     }
 
-    private IEnumerator StartServerTask(string text, string sectionId)
-    {
-        var url = serverBaseUrl.TrimEnd('/') + "/api/start-repair";
-        WWWForm form = new WWWForm();
-        form.AddField("text", text);
-        if (!string.IsNullOrEmpty(sectionId))
-        {
-            form.AddField("sectionId", sectionId);
-        }
-        using (UnityWebRequest req = UnityWebRequest.Post(url, form))
-        {
-            Debug.Log($"[RepairTaskManager] POST {url} text='{text}' sectionId='{sectionId}'");
-            yield return req.SendWebRequest();
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogWarning("[RepairTaskManager] StartServerTask failed: " + req.error);
-            }
-            else
-            {
-                Debug.Log("[RepairTaskManager] StartServerTask OK");
-            }
-        }
-    }
-
-    private IEnumerator NotifyRepairCompleted()
-    {
-        var url = serverBaseUrl.TrimEnd('/') + "/api/repair-completed";
-        WWWForm form = new WWWForm();
-        // Final message for all repairs
-        var completionText = "ESCAPE TO THE START";
-        form.AddField("text", completionText);
-        using (UnityWebRequest req = UnityWebRequest.Post(url, form))
-        {
-            Debug.Log($"[RepairTaskManager] POST {url}");
-            yield return req.SendWebRequest();
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogWarning("[RepairTaskManager] NotifyRepairCompleted failed: " + req.error);
-            }
-            else
-            {
-                Debug.Log("[RepairTaskManager] NotifyRepairCompleted OK");
-            }
-        }
-    }
-
-    private IEnumerator NotifyPipeRepaired(string sectionId)
-    {
-        var url = serverBaseUrl.TrimEnd('/') + "/api/repair-completed";
-        WWWForm form = new WWWForm();
-        form.AddField("text", "REPAIR COMPLETED");
-        form.AddField("sectionId", sectionId);
-        using (UnityWebRequest req = UnityWebRequest.Post(url, form))
-        {
-            Debug.Log($"[RepairTaskManager] POST {url} sectionId='{sectionId}'");
-            yield return req.SendWebRequest();
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogWarning("[RepairTaskManager] NotifyPipeRepaired failed: " + req.error);
-            }
-            else
-            {
-                Debug.Log("[RepairTaskManager] NotifyPipeRepaired OK");
-            }
-        }
-    }
+    // All HTTP calls removed; WebSocketController handles server notifications.
 }

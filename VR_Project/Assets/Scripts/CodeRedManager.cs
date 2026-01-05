@@ -19,6 +19,11 @@ public class CodeRedManager : MonoBehaviour
     [Tooltip("Realtime/Mixed point lights on the map to tint red during purge")]
     public List<Light> mapPointLights;
     public Color purgeLightColor = Color.red;
+    [Tooltip("Enable red flicker effect during purge")]
+    public bool enableRedFlicker = true;
+    public float flickerSpeed = 8f;           // speed of flicker
+    public float flickerIntensityMin = 0.7f;  // min intensity multiplier
+    public float flickerIntensityMax = 1.2f;  // max intensity multiplier
     
     [Header("Audio")]
     public AudioSource sirenAudioSource;
@@ -38,6 +43,9 @@ public class CodeRedManager : MonoBehaviour
         public bool IsCodeRedActive => isCodeRedActive;
     private float timeRemaining;
     private Dictionary<Light, Color> _originalMapLightColors = new Dictionary<Light, Color>();
+    private Dictionary<Light, float> _originalMapLightIntensities = new Dictionary<Light, float>();
+    private Dictionary<Light, float> _flickerPhase = new Dictionary<Light, float>();
+    private Coroutine _flickerRoutine = null;
     private bool _suppressServerNotifyOnNextTrigger = false;
     private bool _escapedBeforePurge = false;
 
@@ -62,7 +70,27 @@ public class CodeRedManager : MonoBehaviour
 
         // Recolor map point lights
         CacheOriginalMapLightColors();
+        CacheOriginalMapLightIntensities();
         SetMapPointLightsColor(purgeLightColor);
+        // Ensure map lights are ON during purge
+        if (mapPointLights != null)
+        {
+            foreach (var l in mapPointLights)
+            {
+                if (l != null) l.enabled = true;
+            }
+        }
+        // Lock all lights ON (ignore section toggles)
+        if (MapControlManager.Instance != null)
+        {
+            MapControlManager.Instance.SetLightsLockedOn(true);
+        }
+
+        // Start flicker if enabled
+        if (enableRedFlicker && _flickerRoutine == null)
+        {
+            _flickerRoutine = StartCoroutine(FlickerLoop());
+        }
 
         // Audio
         if (sirenAudioSource != null && sirenClip != null)
@@ -209,8 +237,20 @@ public class CodeRedManager : MonoBehaviour
     {
         isCodeRedActive = false;
         if (sirenAudioSource != null) sirenAudioSource.Stop();
+        // Stop flicker and restore intensities
+        if (_flickerRoutine != null)
+        {
+            StopCoroutine(_flickerRoutine);
+            _flickerRoutine = null;
+        }
+        RestoreMapLightIntensities();
         // Restore map point lights to original colors
         RestoreMapPointLightsColors();
+        // Unlock light control (sections can be toggled again)
+        if (MapControlManager.Instance != null)
+        {
+            MapControlManager.Instance.SetLightsLockedOn(false);
+        }
         
         string resultEvent = playerEscaped ? "CodeRedEscape" : "CodeRedFail";
         
@@ -280,6 +320,21 @@ public class CodeRedManager : MonoBehaviour
         }
     }
 
+    private void CacheOriginalMapLightIntensities()
+    {
+        _originalMapLightIntensities.Clear();
+        _flickerPhase.Clear();
+        if (mapPointLights == null) return;
+        foreach (var l in mapPointLights)
+        {
+            if (l == null) continue;
+            if (!_originalMapLightIntensities.ContainsKey(l))
+                _originalMapLightIntensities[l] = l.intensity;
+            // random phase per light for variation
+            _flickerPhase[l] = Random.Range(0f, 100f);
+        }
+    }
+
     private void SetMapPointLightsColor(Color c)
     {
         if (mapPointLights == null) return;
@@ -299,5 +354,38 @@ public class CodeRedManager : MonoBehaviour
             l.color = kvp.Value;
         }
         _originalMapLightColors.Clear();
+    }
+
+    private void RestoreMapLightIntensities()
+    {
+        foreach (var kvp in _originalMapLightIntensities)
+        {
+            var l = kvp.Key;
+            if (l == null) continue;
+            l.intensity = kvp.Value;
+        }
+        _originalMapLightIntensities.Clear();
+        _flickerPhase.Clear();
+    }
+
+    private IEnumerator FlickerLoop()
+    {
+        while (isCodeRedActive)
+        {
+            if (mapPointLights != null)
+            {
+                float t = Time.time * flickerSpeed;
+                foreach (var l in mapPointLights)
+                {
+                    if (l == null) continue;
+                    float phase = _flickerPhase.ContainsKey(l) ? _flickerPhase[l] : 0f;
+                    float wave = Mathf.PerlinNoise(t + phase, 0f); // 0..1
+                    float mult = Mathf.Lerp(flickerIntensityMin, flickerIntensityMax, wave);
+                    float baseIntensity = _originalMapLightIntensities.ContainsKey(l) ? _originalMapLightIntensities[l] : l.intensity;
+                    l.intensity = baseIntensity * mult;
+                }
+            }
+            yield return null;
+        }
     }
 }
