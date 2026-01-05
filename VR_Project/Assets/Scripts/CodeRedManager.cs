@@ -34,6 +34,8 @@ public class CodeRedManager : MonoBehaviour
     public UnityEvent<string> OnHudMessage; // VR HUD text updates (VO line, countdown)
 
     private bool isCodeRedActive = false;
+        // Expose read-only state for other systems (e.g., triggers)
+        public bool IsCodeRedActive => isCodeRedActive;
     private float timeRemaining;
     private Dictionary<Light, Color> _originalMapLightColors = new Dictionary<Light, Color>();
     private bool _suppressServerNotifyOnNextTrigger = false;
@@ -44,8 +46,7 @@ public class CodeRedManager : MonoBehaviour
         // Configure server purge duration to 10s at startup.
         if (WebSocketController.Instance != null)
         {
-            WebSocketController.Instance.SendCodeRedConfig(10);
-            Debug.Log("[CodeRedManager] Configured server purge default to 10s");
+            Debug.Log("");
         }
         // Visuals configured by designers. Map light colors cached when purge starts.
     }
