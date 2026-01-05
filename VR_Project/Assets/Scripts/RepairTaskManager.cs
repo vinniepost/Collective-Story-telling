@@ -9,6 +9,7 @@ public class RepairTaskManager : MonoBehaviour
     [Header("Targets (3 tasks in order)")]
     public List<RepairTarget> targets = new List<RepairTarget>();
 
+
     [Header("Popup UI (TextMeshPro)")]
     public TextMeshProUGUI popupTextTMP; // Assign a TMP Text in a Canvas
     public float popupDurationSeconds = 5f;
@@ -80,7 +81,7 @@ public class RepairTaskManager : MonoBehaviour
         _currentIndex++;
         if (_currentIndex >= targets.Count)
         {
-            ShowPopup("All repairs completed");
+            ShowPopup("ESCAPE TO THE START");
             if (notifyServer) StartCoroutine(NotifyRepairCompleted());
             Debug.Log("[RepairTaskManager] All tasks completed. Notifying server.");
             return;
@@ -130,7 +131,7 @@ public class RepairTaskManager : MonoBehaviour
         var url = serverBaseUrl.TrimEnd('/') + "/api/repair-completed";
         WWWForm form = new WWWForm();
         // Final message for all repairs
-        var completionText = "All pipes repaired";
+        var completionText = "ESCAPE TO THE START";
         form.AddField("text", completionText);
         using (UnityWebRequest req = UnityWebRequest.Post(url, form))
         {
