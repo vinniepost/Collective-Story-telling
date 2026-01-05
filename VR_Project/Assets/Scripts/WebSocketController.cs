@@ -36,6 +36,8 @@ public class WebSocketController : MonoBehaviour
     [Header("Game Events")]
     public UnityEvent<string> OnAudienceMessage; // When "vr_message_sent" is received
     public UnityEvent<VoteUpdateData> OnVoteUpdate; // When "update" is received
+    [Header("Code Red Integration")]
+    public CodeRedManager codeRedManager;        // Forward server events to CodeRedManager
 
     private WebSocket websocket;
 
@@ -156,6 +158,18 @@ public class WebSocketController : MonoBehaviour
                     Debug.Log("VR Message from Audience: " + vrMsg.message);
                     OnAudienceMessage?.Invoke(vrMsg.message);
                     break;
+                case "code_red":
+                    var codeRedMsg = JsonUtility.FromJson<CodeRedMessage>(json);
+                    Debug.Log($"Server code_red: duration={codeRedMsg.duration}s");
+                    EnsureCodeRedManager();
+                    codeRedManager?.HandleServerCodeRed(codeRedMsg.duration);
+                    break;
+                case "voice_over":
+                    var voMsg = JsonUtility.FromJson<VoiceOverMessage>(json);
+                    Debug.Log($"Server voice_over: '{voMsg.text}' ({voMsg.duration}s)");
+                    EnsureCodeRedManager();
+                    codeRedManager?.HandleServerVoiceOver(voMsg.text, voMsg.duration);
+                    break;
                 
                 case "assign_username":
                     Debug.Log("Assigned username: " + JsonUtility.FromJson<AssignUsernameMessage>(json).username);
@@ -175,6 +189,18 @@ public class WebSocketController : MonoBehaviour
         catch (System.Exception e)
         {
             Debug.LogError("Error parsing message: " + e.Message);
+        }
+    }
+
+    private void EnsureCodeRedManager()
+    {
+        if (codeRedManager == null)
+        {
+            codeRedManager = FindObjectOfType<CodeRedManager>();
+            if (codeRedManager == null)
+            {
+                Debug.LogWarning("WebSocketController: CodeRedManager not found in scene.");
+            }
         }
     }
 
@@ -219,6 +245,26 @@ public class WebSocketController : MonoBehaviour
         if (websocket != null && websocket.State == WebSocketState.Open)
         {
             var data = new GameEventData { type = "game_event", event_id = eventId };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    // Send Code Red start with explicit duration (Unity-controlled)
+    public async void SendCodeRedStartWithDuration(int seconds)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new GameEventData { type = "game_event", event_id = "CodeRedStart", duration = seconds };
+            await websocket.SendText(JsonUtility.ToJson(data));
+        }
+    }
+
+    // Configure server default purge duration
+    public async void SendCodeRedConfig(int seconds)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            var data = new GameEventData { type = "game_event", event_id = "CodeRedConfig", duration = seconds };
             await websocket.SendText(JsonUtility.ToJson(data));
         }
     }
@@ -310,6 +356,19 @@ public class VRMessageSent : ServerMessage
 }
 
 [System.Serializable]
+public class CodeRedMessage : ServerMessage
+{
+    public int duration;
+}
+
+[System.Serializable]
+public class VoiceOverMessage : ServerMessage
+{
+    public string text;
+    public int duration;
+}
+
+[System.Serializable]
 public class AssignUsernameMessage : ServerMessage
 {
     public string username;
@@ -326,6 +385,7 @@ public class GameEventData
 {
     public string type;
     public string event_id;
+    public int duration;
 }
 
 [System.Serializable]

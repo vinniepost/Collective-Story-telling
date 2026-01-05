@@ -45,6 +45,21 @@ app.post('/api/start-repair', (req, res) => {
     res.json({ ok: true, ...assigned });
 });
 
+// API: Get/Set pipe repair threshold for starting purge (1 or 3)
+app.get('/api/pipe-threshold', (req, res) => {
+    res.json({ ok: true, threshold: PIPE_REPAIR_THRESHOLD });
+});
+app.post('/api/pipe-threshold', (req, res) => {
+    const { threshold } = req.body || {};
+    const n = Number(threshold);
+    if (n === 1 || n === 3) {
+        PIPE_REPAIR_THRESHOLD = n;
+        broadcast({ type: 'notification', message: `Pipe repair threshold set to ${n}` });
+        return res.json({ ok: true, threshold: PIPE_REPAIR_THRESHOLD });
+    }
+    res.status(400).json({ ok: false, message: 'Invalid threshold. Use 1 or 3.' });
+});
+
 // API endpoint to mark a single pipe repaired (incremental, no light changes)
 app.post('/api/repair-completed', (req, res) => {
     const { sectionId, pipeId, text } = req.body || {};
@@ -70,14 +85,18 @@ app.post('/api/repair-completed', (req, res) => {
         }
     }
 
+    // If threshold met, start VO → purge
+    if (shouldStartPurgeByThreshold()) {
+        startVoiceOverThenPurge(8);
+    }
+
     broadcastMapState();
     broadcastMessageState();
 
     try {
         const lower = (msg || '').toLowerCase();
-        if (lower.includes('all pipes repaired')) {
-            broadcast({ type: 'notification', message: 'PURGE THE PLAYER' });
-            startCodeRed(30, { silentBonusNotice: true });
+        if (lower.includes('all pipes repaired') || lower.includes('escape to the start')) {
+            startVoiceOverThenPurge(8);
         }
     } catch {}
 
@@ -150,9 +169,13 @@ function broadcast(obj) {
 
 // --- CODE RED / CLUE SYSTEM STATE & HELPERS ---
 const CLUES_REQUIRED = 4;
+let PURGE_DEFAULT_SECONDS = 120; // Configurable via Unity 'CodeRedConfig' event
 let cluesCollected = 0;
 let codeRedActive = false;
 let codeRedEndTime = 0; // epoch ms
+let voiceOverActive = false;
+let voiceOverTimeout = null;
+let PIPE_REPAIR_THRESHOLD = 3; // Toggle: set to 1 to start purge after a single pipe
 
 function startCodeRed(baseDurationSeconds, opts = {}) {
     const { silentBonusNotice = false } = opts;
@@ -169,6 +192,8 @@ function startCodeRed(baseDurationSeconds, opts = {}) {
     codeRedEndTime = Math.max(codeRedEndTime, proposedEnd);
     const remaining = Math.max(0, Math.floor((codeRedEndTime - Date.now()) / 1000));
     broadcast({ type: 'code_red', duration: remaining });
+
+    // Countdown handled client-side in Unity; no per-second vrMessage updates
 }
 
 function extendCodeRed(extraSeconds, opts = {}) {
@@ -183,6 +208,32 @@ function extendCodeRed(extraSeconds, opts = {}) {
     // Also rebroadcast code_red with new remaining for clients that don't handle code_red_extend
     broadcast({ type: 'code_red', duration: remaining });
     return true;
+}
+
+// Removed server-side countdown spam; Unity shows countdown locally
+
+function startVoiceOverThenPurge(voiceSeconds = 8, purgeSeconds = PURGE_DEFAULT_SECONDS) {
+    // Prevent multiple triggers
+    if (voiceOverActive || codeRedActive) return;
+    voiceOverActive = true;
+    // Use the same text channel as tasks
+    vrMessage = 'ESCAPE TO THE START';
+    broadcastMessageState();
+    broadcast({ type: 'voice_over', text: vrMessage, duration: voiceSeconds });
+    // After VO, start purge
+    if (voiceOverTimeout) clearTimeout(voiceOverTimeout);
+    voiceOverTimeout = setTimeout(() => {
+        voiceOverActive = false;
+        startCodeRed(purgeSeconds, { silentBonusNotice: true });
+    }, Math.max(0, voiceSeconds) * 1000);
+}
+
+function getRepairedPipeCount() {
+    return getRepairPipeIds().reduce((acc, id) => acc + ((pipes[id] && pipes[id].repaired) ? 1 : 0), 0);
+}
+
+function shouldStartPurgeByThreshold() {
+    return getRepairedPipeCount() >= PIPE_REPAIR_THRESHOLD;
 }
 
 // --- MAP SYSTEM STATE ---
@@ -673,16 +724,26 @@ wss.on('connection', ws => {
                     broadcast({ type: "notification", message: "Checkpoint Reached! Voting Cycle Reset." });
                     resetVotingCycle();
                 } else if (data.event_id === 'CodeRedStart') {
-                    startCodeRed(120);
-                    broadcast({ type: "notification", message: "⚠️ CODE RED INITIATED ⚠️" });
+                    const dur = Number(data.duration);
+                    const startSeconds = (Number.isFinite(dur) && dur > 0) ? dur : PURGE_DEFAULT_SECONDS;
+                    startCodeRed(startSeconds);
+                    broadcast({ type: "notification", message: `⚠️ CODE RED INITIATED (${startSeconds}s) ⚠️` });
+                } else if (data.event_id === 'CodeRedConfig') {
+                    const dur = Number(data.duration);
+                    if (Number.isFinite(dur) && dur > 0) {
+                        PURGE_DEFAULT_SECONDS = dur;
+                        broadcast({ type: 'notification', message: `Purge duration set to ${dur}s` });
+                    }
                 } else if (data.event_id === 'CodeRedEscape') {
                     codeRedActive = false;
                     codeRedEndTime = 0;
+                    vrMessage = '';
                     broadcast({ type: "code_red_result", result: "escaped" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT ESCAPED ⚠️" });
                 } else if (data.event_id === 'CodeRedFail') {
                     codeRedActive = false;
                     codeRedEndTime = 0;
+                    vrMessage = '';
                     broadcast({ type: "code_red_result", result: "failed" });
                     broadcast({ type: "notification", message: "⚠️ SUBJECT TERMINATED ⚠️" });
                 } else if (data.event_id === 'PlayerSpawned') {
@@ -712,6 +773,10 @@ wss.on('connection', ws => {
                     broadcast({ type: "notification", message: "REPAIR COMPLETED" });
                     broadcastMapState();
                     broadcastMessageState();
+                    // If threshold met, start VO → purge
+                    if (shouldStartPurgeByThreshold()) {
+                        startVoiceOverThenPurge(8);
+                    }
                 }
                 return;
             }
