@@ -42479,7 +42479,7 @@ MonoBehaviour:
   sirenAudioSource: {fileID: 0}
   sirenClip: {fileID: 0}
   voiceOverSource: {fileID: 462787174}
-  voiceClip: {fileID: 8300000, guid: a4978e0ef17cb6b4abe5d248a9f80640, type: 3}
+  voiceClip: {fileID: 8300000, guid: 592194560abb2374e87f26883424886f, type: 3}
   OnCodeRedStart:
     m_PersistentCalls:
       m_Calls: []
