@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class MapSection
 {
     public string id;       // e.g., "section_0"
-    public GameObject[] lights; // All lights in this section
+    public Light[] lights; // All lights in this section
 }
 
 
@@ -31,8 +31,16 @@ public class MapControlManager : MonoBehaviour
         {
             foreach (var light in section.lights)
             {
-                if (light != null) light.SetActive(isLightsOn);
+                if (light != null) 
+                {
+                    Debug.Log($"[MapControlManager] Setting light {light.name} in section {section.id} to {(isLightsOn ? "ON" : "OFF")}");
+                    light.enabled = isLightsOn;
+                }
             }
+        }
+        else
+        {
+            Debug.LogWarning($"[MapControlManager] Section '{id}' not found! Check Inspector.");
         }
     }
 

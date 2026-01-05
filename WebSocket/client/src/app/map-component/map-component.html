@@ -4,7 +4,7 @@
   </div>
   <div class="map-container">
 
-    <img ngSrc="assets/Map_ver2.png" width="800" height="450" alt="Tactical Map" class="map-image">
+    <img ngSrc="assets/Map_ver3.png" width="800" height="450" alt="Tactical Map" class="map-image">
 
     <!-- Player Marker -->
     @if (playerLocation(); as loc) {
@@ -16,8 +16,7 @@
     <!-- 21 Sections (Light Switches) -->
     @for (sec of sections(); track sec.id) {
     <app-map-button class="map-entity section-btn" [id]="sec.id" [action]="sec.id" [icon]="sec.lightsOn ? '💡' : '🌑'"
-      [currentVotes]="votes()[sec.id] || 0" [totalClients]="totalClients()"
-      [color]="sec.lightsOn ? 'yellow' : 'gray'"
+      [currentVotes]="votes()[sec.id] || 0" [totalClients]="totalClients()" [color]="sec.lightsOn ? 'yellow' : 'gray'"
       (actionTriggered)="voteForEntity(sec.id)">
     </app-map-button>
     }
@@ -26,8 +25,7 @@
     @for (door of doors(); track door.id) {
     <app-map-button class="map-entity door-btn" [id]="door.id" [action]="door.id" [icon]="door.isClosed ? '🔒' : '🚪'"
       [currentVotes]="votes()[door.id] || 0" [totalClients]="totalClients()"
-      [disabled]="(doorCooldown() > 0 && !door.isClosed)" 
-      [color]="door.isClosed ? 'red' : 'green'"
+      [disabled]="(doorCooldown() > 0 && !door.isClosed)" [color]="door.isClosed ? 'red' : 'green'"
       (actionTriggered)="voteForEntity(door.id)">
     </app-map-button>
     }
@@ -46,5 +44,5 @@
   <div class="cooldown-warning">DOOR SYSTEM COOLING DOWN...</div>
   }
 
-  
+
 </div>

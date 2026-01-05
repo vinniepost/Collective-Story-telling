@@ -46,24 +46,22 @@ public class DoorController : MonoBehaviour
             {
                 statusLight.color = lockedColor;
                 statusLight.intensity = 5f;
-                statusLight.enabled = true;
                 statusLight2.color = lockedColor;
                 statusLight2.intensity = 5f;
-                statusLight2.enabled = true;
             }
             else if (unlockable)
             {
                 statusLight.color = unlockableColor;
                 statusLight.intensity = 5f;
-                statusLight.enabled = true;
                 statusLight2.color = unlockableColor;
                 statusLight2.intensity = 5f;
-                statusLight2.enabled = true;
             }
             else
             {
-                statusLight.enabled = false;
-                statusLight2.enabled = false;
+                statusLight.color = openColor;
+                statusLight.intensity = 1f;
+                statusLight2.color = openColor;
+                statusLight2.intensity = 1f;
             }
         }
     }

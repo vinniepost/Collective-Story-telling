@@ -98,7 +98,7 @@ app.post('/api/repair-completed', (req, res) => {
         if (lower.includes('all pipes repaired') || lower.includes('escape to the start')) {
             startVoiceOverThenPurge(8);
         }
-    } catch {}
+    } catch { }
 
     res.json({ ok: true, sectionId: sectionId || null });
 });

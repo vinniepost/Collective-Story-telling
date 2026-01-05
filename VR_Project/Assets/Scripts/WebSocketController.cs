@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using NativeWebSocket;
 using System.Collections;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 /// <summary>
@@ -86,7 +87,7 @@ public class WebSocketController : MonoBehaviour
                 y = 100f - y; 
 
                 // Debug logs to verify coordinates
-                Debug.Log($"[WebSocket] Player Pos: {playerTransform.position}, Map Coords: {x}%, {y}%");
+                // Debug.Log($"[WebSocket] Player Pos: {playerTransform.position}, Map Coords: {x}%, {y}%");
 
                 var data = new PlayerLocationData 
                 { 
@@ -183,6 +184,18 @@ public class WebSocketController : MonoBehaviour
                 case "door_unlockable":
                     var unlockMsg = JsonUtility.FromJson<DoorEventMessage>(json);
                     MapControlManager.Instance.OnDoorUnlockable(unlockMsg.doorId);
+                    break;
+
+                case "map_update":
+                    var mapUpdate = JsonUtility.FromJson<MapUpdateMessage>(json);
+                    if (mapUpdate != null && mapUpdate.sections != null)
+                    {
+                        foreach (var section in mapUpdate.sections)
+                        {
+                            Debug.Log($"Map Update - Section: {section.id}, Lights On: {section.lightsOn}");
+                            MapControlManager.Instance.SetSectionState(section.id, section.lightsOn);
+                        }
+                    }
                     break;
             }
         }
@@ -422,4 +435,17 @@ public class Location
 {
     public float x;
     public float y;
+}
+
+[System.Serializable]
+public class MapUpdateMessage : ServerMessage
+{
+    public List<SectionData> sections;
+}
+
+[System.Serializable]
+public class SectionData
+{
+    public string id;
+    public bool lightsOn;
 }
