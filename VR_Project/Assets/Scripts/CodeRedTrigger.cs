@@ -9,9 +9,16 @@ public class CodeRedTrigger : MonoBehaviour
             var manager = FindFirstObjectByType<CodeRedManager>();
             if (manager != null)
             {
-                Debug.Log("[CodeRedTrigger] Player entered trigger. Escaping!");
-                manager.TriggerEscape();
-                gameObject.SetActive(false);
+                if (manager.IsCodeRedActive)
+                {
+                    Debug.Log("[CodeRedTrigger] Purge active: ESCAPE triggered.");
+                    manager.TriggerEscape();
+                    gameObject.SetActive(false);
+                }
+                else
+                {
+                    Debug.Log("[CodeRedTrigger] Ignored: purge not active.");
+                }
             }
             else
             {
