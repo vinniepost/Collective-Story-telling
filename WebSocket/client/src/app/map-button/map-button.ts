@@ -10,10 +10,12 @@ import { CommonModule } from '@angular/common';
     <button class="map-marker" 
             (click)="onAction()"
             [disabled]="disabled()"
-            [title]="action()"
-            [attr.aria-label]="action()">
+            [title]="action() + ' (' + remainingVotes() + ' votes needed)'"
+            [attr.aria-label]="action()"
+            [style.--btn-color]="color()">
       <span class="icon">{{ icon() }}</span>
-      <span class="vote-count">{{ currentVotes() }}/{{ requiredVotes() }}</span>
+      <span class="vote-count" *ngIf="remainingVotes() > 0">{{ remainingVotes() }} left</span>
+      <span class="vote-count" *ngIf="remainingVotes() === 0">Done</span>
       <span *ngIf="badge()" class="badge">{{ badge() }}</span>
     </button>
   `,
@@ -22,6 +24,11 @@ import { CommonModule } from '@angular/common';
       position: absolute;
       transform: translate(-50%, -50%);
       z-index: 10;
+      
+      /* Scalable sizing relative to map container */
+      width: 4.5%; 
+      aspect-ratio: 1;
+      container-type: inline-size;
     }
 
     .map-marker {
@@ -31,11 +38,11 @@ import { CommonModule } from '@angular/common';
       outline: none;
       position: relative;
       
-      width: 50px;
-      height: 50px;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
-      border: 2px solid #00FF00;
-      background-color: rgba(0, 0, 0, 0.8);
+      border: 2px solid var(--btn-color);
+      background-color: rgba(0, 0, 0, 0.4);
       color: #fff;
       cursor: pointer;
       display: flex;
@@ -47,10 +54,10 @@ import { CommonModule } from '@angular/common';
     }
 
     .map-marker:hover:not(:disabled) {
-      background-color: #00FF00;
+      background-color: var(--btn-color);
       color: #000;
       transform: scale(1.1);
-      box-shadow: 0 0 15px #00FF00;
+      box-shadow: 0 0 10px var(--btn-color);
       z-index: 11;
     }
 
@@ -62,21 +69,24 @@ import { CommonModule } from '@angular/common';
     }
 
     .icon {
-      font-size: 20px;
+      /* Scale icon with button width */
+      font-size: 50cqi;
       line-height: 1;
       margin-bottom: 2px;
     }
 
     .vote-count {
-      font-size: 10px;
+      /* Scale text with button width */
+      font-size: 25cqi;
       font-weight: bold;
+      white-space: nowrap;
     }
 
     .badge {
       position: absolute;
-      top: -6px;
-      right: -6px;
-      font-size: 16px;
+      top: -10cqi;
+      right: -10cqi;
+      font-size: 40cqi;
       text-shadow: 0 0 4px #000;
     }
   `
@@ -88,7 +98,7 @@ export class MapButton {
   totalClients = input(0);
   disabled = input(false);
   badge = input<string | null>(null);
-  
+
   actionTriggered = output<string>();
 
   requiredVotes = computed(() => {
@@ -97,6 +107,12 @@ export class MapButton {
     if (audienceCount === 0) return 1; // Fallback if testing alone
     return Math.ceil(audienceCount / 2);
   });
+
+  remainingVotes = computed(() => {
+    return Math.max(0, this.requiredVotes() - this.currentVotes());
+  });
+
+  color = input('#00FF00');
 
   onAction() {
     if (!this.disabled()) {
